@@ -11,7 +11,6 @@ plugins {
 application {
     mainClass.set("com.linkpowered.proxy.Link")
     applicationDefaultJvmArgs += listOf(
-        "--enable-preview",
         "--enable-native-access=ALL-UNNAMED",
     )
 }
@@ -107,13 +106,11 @@ tasks {
     runShadow {
         workingDir = file("run").also(File::mkdirs)
         standardInput = System.`in`
-        jvmArgs("--enable-preview")
         jvmArgs("--enable-native-access=ALL-UNNAMED")
     }
     named<JavaExec>("run") {
         workingDir = file("run").also(File::mkdirs)
         standardInput = System.`in` // Doesn't work?
-        jvmArgs("--enable-preview")
     }
 }
 

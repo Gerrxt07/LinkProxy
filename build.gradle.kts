@@ -16,10 +16,6 @@ subprojects {
         }
     }
 
-    tasks.withType<JavaCompile>().configureEach {
-        options.compilerArgs.add("--enable-preview")
-    }
-
     dependencies {
         testImplementation(rootProject.libs.junit)
     }
@@ -28,7 +24,6 @@ subprojects {
         useJUnitJupiter()
         targets.all {
             testTask.configure {
-                jvmArgs("--enable-preview")
                 reports.junitXml.required = true
             }
         }

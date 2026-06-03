@@ -19,11 +19,9 @@ package com.linkpowered.natives.util;
 
 import com.google.common.collect.ImmutableList;
 import com.linkpowered.natives.NativeSetupException;
-import com.linkpowered.natives.compression.FfmLibdeflateLinkCompressor;
 import com.linkpowered.natives.compression.JavaLinkCompressor;
 import com.linkpowered.natives.compression.LibdeflateLinkCompressor;
 import com.linkpowered.natives.compression.LinkCompressorFactory;
-import com.linkpowered.natives.encryption.FfmOpenSslLinkCipher;
 import com.linkpowered.natives.encryption.JavaLinkCipher;
 import com.linkpowered.natives.encryption.LinkCipherFactory;
 import com.linkpowered.natives.encryption.NativeLinkCipher;
@@ -84,16 +82,8 @@ public class Natives {
       ImmutableList.of(
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-compress.so"),
-              "libdeflate FFM (Linux x86_64)",
-              FfmLibdeflateLinkCompressor.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
-              copyAndLoadNative("/linux_x86_64/link-compress.so"),
               "libdeflate (Linux x86_64)",
               LibdeflateLinkCompressor.FACTORY), // compiled with Ubuntu 20.04
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64_MUSL,
-              copyAndLoadNative("/linux_x86_64/link-compress-musl.so"),
-              "libdeflate FFM (Linux x86_64, musl)",
-              FfmLibdeflateLinkCompressor.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64_MUSL,
               copyAndLoadNative("/linux_x86_64/link-compress-musl.so"),
               "libdeflate (Linux x86_64, musl)",
@@ -101,25 +91,13 @@ public class Natives {
 
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-compress.so"),
-              "libdeflate FFM (Linux aarch64)",
-              FfmLibdeflateLinkCompressor.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
-              copyAndLoadNative("/linux_aarch64/link-compress.so"),
               "libdeflate (Linux aarch64)",
               LibdeflateLinkCompressor.FACTORY), // compiled with Ubuntu 20.04
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64_MUSL,
-              copyAndLoadNative("/linux_aarch64/link-compress-musl.so"),
-              "libdeflate FFM (Linux aarch64, musl)",
-              FfmLibdeflateLinkCompressor.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64_MUSL,
               copyAndLoadNative("/linux_aarch64/link-compress-musl.so"),
               "libdeflate (Linux aarch64, musl)",
               LibdeflateLinkCompressor.FACTORY), // compiled with Alpine 3.18
 
-          new NativeCodeLoader.Variant<>(NativeConstraints.MACOS_AARCH64,
-              copyAndLoadNative("/macos_arm64/link-compress.dylib"),
-              "libdeflate FFM (macOS ARM64 / Apple Silicon)",
-              FfmLibdeflateLinkCompressor.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.MACOS_AARCH64,
               copyAndLoadNative("/macos_arm64/link-compress.dylib"),
               "libdeflate (macOS ARM64 / Apple Silicon)",
@@ -132,59 +110,31 @@ public class Natives {
   public static final NativeCodeLoader<LinkCipherFactory> cipher = new NativeCodeLoader<>(
       ImmutableList.of(
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
-              copyAndLoadNative("/linux_x86_64/link-cipher.so"),
-              "OpenSSL FFM local (Linux x86_64)", FfmOpenSslLinkCipher.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher.so"), // Any local version
               "OpenSSL local (Linux x86_64)", NativeLinkCipher.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
-              copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x.so"),
-              "OpenSSL FFM 3.x.x (Linux x86_64)", FfmOpenSslLinkCipher.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x.so"), // Ubuntu 22.04
               "OpenSSL 3.x.x (Linux x86_64)", NativeLinkCipher.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
-              copyAndLoadNative("/linux_x86_64/link-cipher-ossl11x.so"),
-              "OpenSSL FFM 1.1.x (Linux x86_64)", FfmOpenSslLinkCipher.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl11x.so"), // Ubuntu 20.04
               "OpenSSL 1.1.x (Linux x86_64)", NativeLinkCipher.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64_MUSL,
-              copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x-musl.so"),
-              "OpenSSL FFM 3.x.x (Linux x86_64, musl)", FfmOpenSslLinkCipher.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64_MUSL,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x-musl.so"), // Alpine 3.18
               "OpenSSL 3.x.x (Linux x86_64, musl)", NativeLinkCipher.FACTORY),
 
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher.so"),
-              "OpenSSL FFM local (Linux aarch64)", FfmOpenSslLinkCipher.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
-              copyAndLoadNative("/linux_aarch64/link-cipher.so"),
               "OpenSSL local (Linux aarch64)", NativeLinkCipher.FACTORY), // Any local version
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
-              copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x.so"),
-              "OpenSSL FFM 3.x.x (Linux aarch64)", FfmOpenSslLinkCipher.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x.so"),
               "OpenSSL 3.x.x (Linux aarch64)", NativeLinkCipher.FACTORY), // Ubuntu 22.04
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl11x.so"),
-              "OpenSSL FFM 1.1.x (Linux aarch64)", FfmOpenSslLinkCipher.FACTORY),
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
-              copyAndLoadNative("/linux_aarch64/link-cipher-ossl11x.so"),
               "OpenSSL 1.1.x (Linux aarch64)", NativeLinkCipher.FACTORY), // Ubuntu 20.04
-          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64_MUSL,
-              copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x-musl.so"),
-              "OpenSSL FFM 3.x.x (Linux aarch64, musl)", FfmOpenSslLinkCipher.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64_MUSL,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x-musl.so"),
               "OpenSSL 3.x.x (Linux aarch64, musl)", NativeLinkCipher.FACTORY), // Alpine 3.18
 
-          new NativeCodeLoader.Variant<>(NativeConstraints.MACOS_AARCH64,
-              copyAndLoadNative("/macos_arm64/link-cipher.dylib"),
-              "OpenSSL FFM (macOS ARM64 / Apple Silicon)",
-              FfmOpenSslLinkCipher.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.MACOS_AARCH64,
               copyAndLoadNative("/macos_arm64/link-cipher.dylib"),
               "native (macOS ARM64 / Apple Silicon)",

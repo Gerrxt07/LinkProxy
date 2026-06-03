@@ -31,3 +31,5 @@
 2026-06-03T15:31:17+02:00 [USER] [PLANS] Implement remaining GitHub issues #1, #2, and #6 on the existing performance PR branch.
 2026-06-03T15:31:17+02:00 [CODE] [OUTCOMES] Added FFM-first OpenSSL/libdeflate variants with JNI/Java fallback, made io_uring auto-preferred when Netty reports it available, and wrapped raw retained packet frames in RawMinecraftPacket before zero-copy forwarding.
 2026-06-03T15:31:17+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after issue #1/#2/#6 changes.
+2026-06-03T15:40:16+02:00 [CODE] [OUTCOMES] Removed Java 21 preview-compiled FFM classes after Java 26 runtime rejected class version 65.65535 preview files; existing JNI native libdeflate/OpenSSL paths remain active.
+2026-06-03T15:40:16+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded and ./run-proxy.sh booted to Done without preview class crash; PR #7 should no longer close issue #1 until FFM is reworked without preview class files.
