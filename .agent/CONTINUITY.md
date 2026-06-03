@@ -36,3 +36,5 @@
 2026-06-03T15:48:40+02:00 [USER] [DECISIONS] Project should target Java 26, so FFM implementation is acceptable without Java 21 preview class files.
 2026-06-03T15:48:40+02:00 [CODE] [OUTCOMES] Switched Gradle Java toolchain to 26, restored FFM-first libdeflate/OpenSSL variants without preview flags, and kept JNI/Java fallback variants after FFM.
 2026-06-03T15:48:40+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted on Java 26 and logged libdeflate FFM plus OpenSSL FFM loaded before Done.
+2026-06-03T15:59:33+02:00 [CODE] [OUTCOMES] Replaced the plain startup boot log with a colored ASCII Link banner showing the runtime version.
+2026-06-03T15:59:33+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted and showed the Link 1.0.1 banner before channel/plugin logs.
