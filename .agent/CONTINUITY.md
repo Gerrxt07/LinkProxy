@@ -33,3 +33,6 @@
 2026-06-03T15:31:17+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after issue #1/#2/#6 changes.
 2026-06-03T15:40:16+02:00 [CODE] [OUTCOMES] Removed Java 21 preview-compiled FFM classes after Java 26 runtime rejected class version 65.65535 preview files; existing JNI native libdeflate/OpenSSL paths remain active.
 2026-06-03T15:40:16+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded and ./run-proxy.sh booted to Done without preview class crash; PR #7 should no longer close issue #1 until FFM is reworked without preview class files.
+2026-06-03T15:48:40+02:00 [USER] [DECISIONS] Project should target Java 26, so FFM implementation is acceptable without Java 21 preview class files.
+2026-06-03T15:48:40+02:00 [CODE] [OUTCOMES] Switched Gradle Java toolchain to 26, restored FFM-first libdeflate/OpenSSL variants without preview flags, and kept JNI/Java fallback variants after FFM.
+2026-06-03T15:48:40+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted on Java 26 and logged libdeflate FFM plus OpenSSL FFM loaded before Done.
