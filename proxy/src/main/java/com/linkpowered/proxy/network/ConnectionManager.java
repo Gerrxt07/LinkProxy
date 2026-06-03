@@ -91,6 +91,13 @@ public final class ConnectionManager {
   public void logChannelInformation() {
     LOGGER.info("Connections will use {} channels, {} compression, {} ciphers", this.transportType,
         Natives.compress.getLoadedVariant(), Natives.cipher.getLoadedVariant());
+    String requestedTransport = System.getProperty("link.transport");
+    if (requestedTransport != null && !requestedTransport.isBlank()
+        && !this.transportType.toString().equalsIgnoreCase(requestedTransport)
+        && !this.transportType.name().equalsIgnoreCase(requestedTransport)) {
+      LOGGER.warn("Requested network transport {} is unavailable; using {} instead.",
+          requestedTransport, this.transportType);
+    }
     Natives.compress.getFallbackReason()
         .ifPresent(reason -> LOGGER.warn("Native compression unavailable; using Java fallback. {}",
             reason));

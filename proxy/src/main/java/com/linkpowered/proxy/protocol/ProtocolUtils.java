@@ -182,6 +182,11 @@ public enum ProtocolUtils {
       throw badVarint();
     }
 
+    int vectorResult = VectorProtocolUtils.readVarInt(buf);
+    if (vectorResult != Integer.MIN_VALUE) {
+      return vectorResult;
+    }
+
     // we can read at least one byte, and this should be a common case
     int k = buf.readByte();
     if ((k & 0x80) != 128) {

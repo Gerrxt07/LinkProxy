@@ -11,11 +11,20 @@ plugins {
 application {
     mainClass.set("com.linkpowered.proxy.Link")
     applicationDefaultJvmArgs += listOf(
+        "--add-modules=jdk.incubator.vector",
         "--enable-native-access=ALL-UNNAMED",
     )
 }
 
 tasks {
+    withType<JavaCompile>().configureEach {
+        options.compilerArgs.addAll(listOf("--add-modules", "jdk.incubator.vector"))
+    }
+
+    withType<Test>().configureEach {
+        jvmArgs("--add-modules", "jdk.incubator.vector")
+    }
+
     withType<Checkstyle> {
         exclude("**/com/linkpowered/proxy/protocol/packet/**")
     }
@@ -106,11 +115,13 @@ tasks {
     runShadow {
         workingDir = file("run").also(File::mkdirs)
         standardInput = System.`in`
+        jvmArgs("--add-modules=jdk.incubator.vector")
         jvmArgs("--enable-native-access=ALL-UNNAMED")
     }
     named<JavaExec>("run") {
         workingDir = file("run").also(File::mkdirs)
         standardInput = System.`in` // Doesn't work?
+        jvmArgs("--add-modules=jdk.incubator.vector")
     }
 }
 
@@ -120,7 +131,7 @@ fill {
 
     build {
         channel = BuildChannel.STABLE
-        versionFamily("1.0.1")
+        versionFamily("1.0.2")
         version(projectVersion)
 
         downloads {

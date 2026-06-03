@@ -116,6 +116,19 @@ public enum TransportType {
       return NIO;
     }
 
+    String requestedTransport = System.getProperty("link.transport");
+    if (requestedTransport != null && !requestedTransport.isBlank()) {
+      for (TransportType type : values()) {
+        if (type.name.equalsIgnoreCase(requestedTransport)
+            || type.name().equalsIgnoreCase(requestedTransport)) {
+          if (type.isAvailable()) {
+            return type;
+          }
+          break;
+        }
+      }
+    }
+
     if (IoUring.isAvailable()) {
       return IO_URING;
     }
@@ -129,6 +142,20 @@ public enum TransportType {
     }
 
     return NIO;
+  }
+
+  /**
+   * Returns whether this transport can run on the current host.
+   *
+   * @return {@code true} if available
+   */
+  public boolean isAvailable() {
+    return switch (this) {
+      case NIO -> true;
+      case EPOLL -> Epoll.isAvailable();
+      case KQUEUE -> KQueue.isAvailable();
+      case IO_URING -> IoUring.isAvailable();
+    };
   }
 
   /**

@@ -13,4 +13,4 @@ fi
 mkdir -p "$RUN_DIR"
 cd "$RUN_DIR"
 
-exec java --enable-native-access=ALL-UNNAMED ${JAVA_OPTS:-} -jar "$JAR" "$@"
+exec java --add-modules=jdk.incubator.vector --enable-native-access=ALL-UNNAMED ${JAVA_OPTS:-} -jar "$JAR" "$@"
