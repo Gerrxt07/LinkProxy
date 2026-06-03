@@ -23,6 +23,7 @@ import com.linkpowered.natives.compression.FfmLibdeflateLinkCompressor;
 import com.linkpowered.natives.compression.JavaLinkCompressor;
 import com.linkpowered.natives.compression.LibdeflateLinkCompressor;
 import com.linkpowered.natives.compression.LinkCompressorFactory;
+import com.linkpowered.natives.encryption.FfmIntelIpSecMbLinkCipher;
 import com.linkpowered.natives.encryption.FfmOpenSslLinkCipher;
 import com.linkpowered.natives.encryption.JavaLinkCipher;
 import com.linkpowered.natives.encryption.LinkCipherFactory;
@@ -80,6 +81,17 @@ public class Natives {
     }
   }
 
+  private static Runnable loadSystemLibrary(String name, Runnable afterLoad) {
+    return () -> {
+      try {
+        System.loadLibrary(name);
+        afterLoad.run();
+      } catch (UnsatisfiedLinkError e) {
+        throw new NativeSetupException("Unable to load system library " + name, e);
+      }
+    };
+  }
+
   public static final NativeCodeLoader<LinkCompressorFactory> compress = new NativeCodeLoader<>(
       ImmutableList.of(
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
@@ -131,6 +143,10 @@ public class Natives {
 
   public static final NativeCodeLoader<LinkCipherFactory> cipher = new NativeCodeLoader<>(
       ImmutableList.of(
+          new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
+              loadSystemLibrary("IPSec_MB", FfmIntelIpSecMbLinkCipher::ensureAvailable),
+              "Intel IPsec-MB FFM AES-CFB8 (Linux x86_64)",
+              FfmIntelIpSecMbLinkCipher.FACTORY),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher.so"),
               "OpenSSL FFM local (Linux x86_64)", FfmOpenSslLinkCipher.FACTORY),

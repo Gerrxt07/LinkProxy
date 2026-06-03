@@ -43,6 +43,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -50,8 +51,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Handles loading plugins and provides a registry for loaded plugins.
@@ -94,26 +99,36 @@ public class LinkPluginManager implements PluginManager {
     Map<String, PluginDescription> foundCandidates = new LinkedHashMap<>();
     JavaPluginLoader loader = new JavaPluginLoader(server, directory);
 
+    List<Path> pluginJars = new ArrayList<>();
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory,
         p -> p.toFile().isFile() && p.toString().endsWith(".jar"))) {
       for (Path path : stream) {
-        try {
-          PluginDescription candidate = loader.loadCandidate(path);
+        pluginJars.add(path);
+      }
+    }
+    pluginJars.sort(Comparator.comparing(path -> path.getFileName().toString()));
 
-          // If we found a duplicate candidate (with the same ID), don't load it.
-          PluginDescription maybeExistingCandidate = foundCandidates.putIfAbsent(
-              candidate.getId(), candidate);
+    List<PluginScanResult> scanResults = scanPluginCandidates(pluginJars, loader);
+    for (PluginScanResult scanResult : scanResults) {
+      if (scanResult.failure() != null) {
+        logger.error("Unable to load plugin {}", scanResult.path(), scanResult.failure());
+        continue;
+      }
+      PluginDescription candidate = scanResult.candidate();
+      if (candidate == null) {
+        continue;
+      }
 
-          if (maybeExistingCandidate != null) {
-            logger.error("Refusing to load plugin at path {} since we already "
-                    + "loaded a plugin with the same ID {} from {}",
-                candidate.getSource().map(Objects::toString).orElse("<UNKNOWN>"),
-                candidate.getId(),
-                maybeExistingCandidate.getSource().map(Objects::toString).orElse("<UNKNOWN>"));
-          }
-        } catch (Throwable e) {
-          logger.error("Unable to load plugin {}", path, e);
-        }
+      // If we found a duplicate candidate (with the same ID), don't load it.
+      PluginDescription maybeExistingCandidate = foundCandidates.putIfAbsent(
+          candidate.getId(), candidate);
+
+      if (maybeExistingCandidate != null) {
+        logger.error("Refusing to load plugin at path {} since we already "
+                + "loaded a plugin with the same ID {} from {}",
+            candidate.getSource().map(Objects::toString).orElse("<UNKNOWN>"),
+            candidate.getId(),
+            maybeExistingCandidate.getSource().map(Objects::toString).orElse("<UNKNOWN>"));
       }
     }
 
@@ -225,5 +240,36 @@ public class LinkPluginManager implements PluginManager {
       throw new UnsupportedOperationException(
           "Operation is not supported on non-Java Link plugins.");
     }
+  }
+
+  private List<PluginScanResult> scanPluginCandidates(List<Path> pluginJars,
+      JavaPluginLoader loader) {
+    if (pluginJars.isEmpty()) {
+      return List.of();
+    }
+
+    try (ExecutorService scanner = Executors.newThreadPerTaskExecutor(
+        Thread.ofVirtual().name("Link Plugin Scanner #", 0).factory())) {
+      List<CompletableFuture<PluginScanResult>> futures = pluginJars.stream()
+          .map(path -> CompletableFuture.supplyAsync(() -> {
+            try {
+              return new PluginScanResult(path, loader.loadCandidate(path), null);
+            } catch (Throwable throwable) {
+              return new PluginScanResult(path, null, throwable);
+            }
+          }, scanner))
+          .toList();
+
+      CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+      return futures.stream()
+          .map(CompletableFuture::join)
+          .toList();
+    }
+  }
+
+  private record PluginScanResult(
+      Path path,
+      @Nullable PluginDescription candidate,
+      @Nullable Throwable failure) {
   }
 }

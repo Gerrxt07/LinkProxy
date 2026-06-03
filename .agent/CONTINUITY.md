@@ -41,3 +41,6 @@
 2026-06-03T19:06:43+02:00 [USER] [PLANS] Implement GitHub issues #8, #9, #10, and #11 without Redis/Dragonfly access; bump version to 1.0.2 and push when ready.
 2026-06-03T19:06:43+02:00 [CODE] [OUTCOMES] Added io_uring transport override/log fallback, Vector API VarInt/preamble scan path, FFM-backed HAProxy v2 source parse with early local drop hook, and version 1.0.2 runtime/build args.
 2026-06-03T19:06:43+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done and showed Link 1.0.2.
+2026-06-03T19:22:09+02:00 [USER] [PLANS] Implement GitHub issues #14, #15, and #16; keep #12 on hold for Redis/Dragonfly.
+2026-06-03T19:22:09+02:00 [CODE] [OUTCOMES] Started localization loading on a virtual thread, scanned plugin JAR candidates concurrently with virtual threads before dependency resolution, added optional Intel IPsec-MB FFM AES-CFB8 cipher with self-test and fallback, and bumped version to 1.0.3.
+2026-06-03T19:22:09+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done and showed Link 1.0.3.
