@@ -24,6 +24,7 @@ import com.linkpowered.proxy.network.limiter.PacketLimiter;
 import com.linkpowered.proxy.protocol.MinecraftPacket;
 import com.linkpowered.proxy.protocol.ProtocolUtils;
 import com.linkpowered.proxy.protocol.StateRegistry;
+import com.linkpowered.proxy.protocol.VectorProtocolUtils;
 import com.linkpowered.proxy.util.except.QuietDecoderException;
 import com.linkpowered.proxy.util.except.QuietRuntimeException;
 import io.netty.buffer.ByteBuf;
@@ -81,7 +82,10 @@ public class MinecraftVarintFrameDecoder extends ByteToMessageDecoder {
 
     // skip any runs of 0x00 we might find
     int wlen = in.readableBytes();
-    int packetStart = in.forEachByte(FIND_NON_NUL);
+    int packetStart = VectorProtocolUtils.firstNonZero(in, in.readerIndex(), wlen);
+    if (packetStart == -2) {
+      packetStart = in.forEachByte(FIND_NON_NUL);
+    }
     if (packetStart == -1) {
       in.clear();
       // Apply a more strict check in serverbound direction, we really shouldn't be seeing this many 0x00s

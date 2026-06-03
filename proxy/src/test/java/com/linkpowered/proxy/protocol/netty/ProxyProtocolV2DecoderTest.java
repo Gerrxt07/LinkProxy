@@ -18,6 +18,7 @@
 package com.linkpowered.proxy.protocol.netty;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.netty.buffer.ByteBuf;
@@ -38,6 +39,32 @@ class ProxyProtocolV2DecoderTest {
     ProxiedAddress address = channel.readInbound();
 
     assertEquals(new InetSocketAddress("192.0.2.10", 25565), address.sourceAddress());
+  }
+
+  @Test
+  void decodesDirectIpv4SourceAddress() {
+    EmbeddedChannel channel = new EmbeddedChannel(new ProxyProtocolV2Decoder());
+    ByteBuf input = Unpooled.directBuffer();
+    input.writeBytes(ipv4Header());
+
+    channel.writeInbound(input);
+    ProxiedAddress address = channel.readInbound();
+
+    assertEquals(new InetSocketAddress("192.0.2.10", 25565), address.sourceAddress());
+  }
+
+  @Test
+  void closesBeforeForwardingDroppedSource() {
+    EmbeddedChannel channel = new EmbeddedChannel(new ProxyProtocolV2Decoder() {
+      @Override
+      protected boolean shouldDropSource(InetSocketAddress sourceAddress) {
+        return true;
+      }
+    });
+
+    channel.writeInbound(ipv4Header());
+
+    assertFalse(channel.isOpen());
   }
 
   @Test

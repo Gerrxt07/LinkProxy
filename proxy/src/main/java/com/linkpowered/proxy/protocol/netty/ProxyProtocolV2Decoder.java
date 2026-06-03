@@ -21,6 +21,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.CorruptedFrameException;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -51,25 +53,26 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
       return;
     }
 
-    int readerIndex = in.readerIndex();
+    SegmentView header = segmentView(in, HEADER_LENGTH);
     for (int i = 0; i < SIGNATURE.length; i++) {
-      if (in.getByte(readerIndex + i) != SIGNATURE[i]) {
+      if (header.getByte(i) != SIGNATURE[i]) {
         throw new CorruptedFrameException("Expected HAProxy PROXY protocol v2 signature");
       }
     }
 
-    int versionCommand = in.getUnsignedByte(readerIndex + 12);
+    int versionCommand = header.getUnsignedByte(12);
     if ((versionCommand & 0xF0) != VERSION) {
       throw new CorruptedFrameException("Expected HAProxy PROXY protocol v2 header");
     }
 
     int command = versionCommand & 0x0F;
-    int addressLength = in.getUnsignedShort(readerIndex + 14);
+    int addressLength = header.getUnsignedShort(14);
     if (in.readableBytes() < HEADER_LENGTH + addressLength) {
       return;
     }
 
-    final int familyTransport = in.getUnsignedByte(readerIndex + 13);
+    SegmentView packet = segmentView(in, HEADER_LENGTH + addressLength);
+    final int familyTransport = packet.getUnsignedByte(13);
     in.skipBytes(HEADER_LENGTH);
     if (command == COMMAND_LOCAL) {
       in.skipBytes(addressLength);
@@ -87,9 +90,9 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
 
     int family = familyTransport & 0xF0;
     if (family == FAMILY_IPV4) {
-      decodeTcpAddress(ctx, in, out, addressLength, 4, IPV4_ADDRESS_LENGTH);
+      decodeTcpAddress(ctx, in, out, packet, addressLength, 4, IPV4_ADDRESS_LENGTH);
     } else if (family == FAMILY_IPV6) {
-      decodeTcpAddress(ctx, in, out, addressLength, 16, IPV6_ADDRESS_LENGTH);
+      decodeTcpAddress(ctx, in, out, packet, addressLength, 16, IPV6_ADDRESS_LENGTH);
     } else {
       throw new CorruptedFrameException("Unsupported HAProxy PROXY protocol v2 address family");
     }
@@ -99,6 +102,7 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
       ChannelHandlerContext ctx,
       ByteBuf in,
       List<Object> out,
+      SegmentView packet,
       int addressLength,
       int bytesPerAddress,
       int minimumAddressLength) throws UnknownHostException {
@@ -107,14 +111,60 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
     }
 
     byte[] sourceAddressBytes = new byte[bytesPerAddress];
-    in.readBytes(sourceAddressBytes);
+    packet.copyTo(sourceAddressBytes, HEADER_LENGTH);
     in.skipBytes(bytesPerAddress);
-    int sourcePort = in.readUnsignedShort();
+    in.skipBytes(bytesPerAddress);
+    int sourcePort = packet.getUnsignedShort(HEADER_LENGTH + (bytesPerAddress * 2L));
     in.skipBytes(2);
     in.skipBytes(addressLength - minimumAddressLength);
 
     InetAddress sourceAddress = InetAddress.getByAddress(sourceAddressBytes);
-    out.add(new ProxiedAddress(new InetSocketAddress(sourceAddress, sourcePort)));
+    InetSocketAddress proxiedAddress = new InetSocketAddress(sourceAddress, sourcePort);
+    if (shouldDropSource(proxiedAddress)) {
+      ctx.close();
+      return;
+    }
+    out.add(new ProxiedAddress(proxiedAddress));
     ctx.pipeline().remove(this);
+  }
+
+  protected boolean shouldDropSource(InetSocketAddress sourceAddress) {
+    return false;
+  }
+
+  private static SegmentView segmentView(ByteBuf in, int length) {
+    if (in.hasMemoryAddress()) {
+      MemorySegment segment = MemorySegment.ofAddress(in.memoryAddress() + in.readerIndex())
+          .reinterpret(length);
+      return new SegmentView(segment, 0);
+    }
+    if (in.hasArray()) {
+      MemorySegment segment = MemorySegment.ofArray(in.array());
+      return new SegmentView(segment, in.arrayOffset() + in.readerIndex());
+    }
+
+    byte[] bytes = new byte[length];
+    in.getBytes(in.readerIndex(), bytes);
+    return new SegmentView(MemorySegment.ofArray(bytes), 0);
+  }
+
+  private record SegmentView(MemorySegment segment, long baseOffset) {
+
+    private byte getByte(long offset) {
+      return segment.get(ValueLayout.JAVA_BYTE, baseOffset + offset);
+    }
+
+    private int getUnsignedByte(long offset) {
+      return getByte(offset) & 0xFF;
+    }
+
+    private int getUnsignedShort(long offset) {
+      return (getUnsignedByte(offset) << 8) | getUnsignedByte(offset + 1);
+    }
+
+    private void copyTo(byte[] destination, long offset) {
+      MemorySegment.copy(segment, baseOffset + offset, MemorySegment.ofArray(destination), 0,
+          destination.length);
+    }
   }
 }

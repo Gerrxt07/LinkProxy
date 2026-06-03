@@ -61,6 +61,22 @@ public class ProtocolUtilsTest {
   }
 
   @Test
+  void vectorVarIntFastPathReadsHeapBuffer() {
+    ByteBuf buf = Unpooled.buffer(8);
+    ProtocolUtils.writeVarInt(buf, 2_097_151);
+    buf.writeByte(0);
+
+    assertEquals(2_097_151, ProtocolUtils.readVarInt(buf));
+  }
+
+  @Test
+  void vectorPreambleScanFindsFirstPayloadByte() {
+    ByteBuf buf = Unpooled.wrappedBuffer(new byte[] {0, 0, 0, 5, 1});
+
+    assertEquals(3, VectorProtocolUtils.firstNonZero(buf, 0, buf.readableBytes()));
+  }
+
+  @Test
   void testNegativeOld() {
     ByteBuf buf = Unpooled.buffer(5);
     for (int i = 0; i <= 0; i -= 127) {

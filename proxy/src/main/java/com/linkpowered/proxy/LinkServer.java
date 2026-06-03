@@ -292,7 +292,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
 
     this.doStartupConfigLoad();
 
-    registerTranslations();
+    final CompletableFuture<Void> translationsFuture = registerTranslationsAsync();
 
     for (ServerInfo cliServer : options.getServers()) {
       servers.register(cliServer);
@@ -336,6 +336,12 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     if (configuration.isQueryEnabled()) {
       this.cm.queryBind(configuration.getBind().getHostString(), configuration.getQueryPort());
     }
+
+    translationsFuture.whenComplete((ignored, throwable) -> {
+      if (throwable != null) {
+        logger.error("Unable to finish loading localizations", throwable);
+      }
+    });
   }
 
   private void logStartupBanner() {
@@ -369,14 +375,19 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     }
   }
 
+  private CompletableFuture<Void> registerTranslationsAsync() {
+    logger.info("Loading localizations...");
+    return CompletableFuture.runAsync(
+        this::registerTranslations,
+        command -> Thread.ofVirtual().name("Link Translation Loader", 0).start(command));
+  }
+
   private void registerTranslations() {
     final MiniMessageTranslationStore translationRegistry =
             MiniMessageTranslationStore.create(Key.key("link", "translations"));
     translationRegistry.defaultLocale(Locale.US);
     try {
       ResourceUtils.visitResources(LinkServer.class, path -> {
-        logger.info("Loading localizations...");
-
         final Path langPath = Path.of("lang");
 
         try {
