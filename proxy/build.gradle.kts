@@ -120,7 +120,7 @@ fill {
 
     build {
         channel = BuildChannel.STABLE
-        versionFamily("1.0.0")
+        versionFamily("1.0.1")
         version(projectVersion)
 
         downloads {
