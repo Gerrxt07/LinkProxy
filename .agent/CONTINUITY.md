@@ -27,3 +27,4 @@
 2026-06-03T14:10:22+02:00 [USER] [PLANS] Implement GitHub issues #3, #4, and #5; defer #1, #2, and #6.
 2026-06-03T14:10:22+02:00 [CODE] [OUTCOMES] Added .serena/ to .gitignore; replaced Netty HAProxy codec with strict PROXY v2 decoder; added adaptive Netty flush consolidation; moved plugin async executor tasks to virtual threads.
 2026-06-03T14:10:22+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after issue #3/#4/#5 changes.
+2026-06-03T15:19:43+02:00 [CODE] [OUTCOMES] Bumped project version and Fill version family to 1.0.1, pushed branch codex/proxy-performance-1.0.1, and opened draft PR #7 to close GitHub issues #3, #4, and #5 when merged.
