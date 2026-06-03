@@ -80,7 +80,7 @@ public class MinecraftDecoder extends ChannelInboundHandlerAdapter {
       if (this.direction == ProtocolUtils.Direction.SERVERBOUND && this.state != StateRegistry.PLAY) {
         throw this.handleInvalidPacketId(packetId);
       }
-      ctx.fireChannelRead(buf.retain());
+      ctx.fireChannelRead(new RawMinecraftPacket(buf.retain()));
     } else {
       doLengthSanityChecks(buf, packet);
 

@@ -47,6 +47,7 @@ import com.linkpowered.proxy.protocol.MinecraftPacket;
 import com.linkpowered.proxy.protocol.StateRegistry;
 import com.linkpowered.proxy.protocol.netty.MinecraftDecoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftVarintFrameDecoder;
+import com.linkpowered.proxy.protocol.netty.RawMinecraftPacket;
 import com.linkpowered.proxy.protocol.packet.AvailableCommandsPacket;
 import com.linkpowered.proxy.protocol.packet.BossBarPacket;
 import com.linkpowered.proxy.protocol.packet.BundleDelimiterPacket;
@@ -467,8 +468,13 @@ public class BackendPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public void handleUnknown(ByteBuf buf) {
-    boolean huge = buf.readableBytes() > LARGE_PACKET_THRESHOLD;
-    playerConnection.delayedWrite(buf.retain());
+    handleRaw(new RawMinecraftPacket(buf));
+  }
+
+  @Override
+  public void handleRaw(RawMinecraftPacket packet) {
+    boolean huge = packet.content().readableBytes() > LARGE_PACKET_THRESHOLD;
+    playerConnection.delayedWrite(packet.content().retain());
     if (huge || ++packetsFlushed >= MAXIMUM_PACKETS_TO_FLUSH) {
       playerConnection.flush();
       packetsFlushed = 0;

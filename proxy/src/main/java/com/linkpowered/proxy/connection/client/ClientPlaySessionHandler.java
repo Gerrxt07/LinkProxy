@@ -41,6 +41,7 @@ import com.linkpowered.proxy.connection.player.resourcepack.ResourcePackResponse
 import com.linkpowered.proxy.protocol.MinecraftPacket;
 import com.linkpowered.proxy.protocol.StateRegistry;
 import com.linkpowered.proxy.protocol.netty.MinecraftDecoder;
+import com.linkpowered.proxy.protocol.netty.RawMinecraftPacket;
 import com.linkpowered.proxy.protocol.packet.BossBarPacket;
 import com.linkpowered.proxy.protocol.packet.ClientSettingsPacket;
 import com.linkpowered.proxy.protocol.packet.JoinGamePacket;
@@ -527,6 +528,11 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
 
   @Override
   public void handleUnknown(ByteBuf buf) {
+    handleRaw(new RawMinecraftPacket(buf));
+  }
+
+  @Override
+  public void handleRaw(RawMinecraftPacket packet) {
     LinkServerConnection serverConnection = player.getConnectedServer();
     if (serverConnection == null) {
       // No server connection yet, probably transitioning.
@@ -539,7 +545,7 @@ public class ClientPlaySessionHandler implements MinecraftSessionHandler {
         && serverConnection.getPhase().consideredComplete()
         && smc.getState() == StateRegistry.PLAY;
     if (stateAllowsForward) {
-      smc.write(buf.retain());
+      smc.write(packet.content().retain());
     }
   }
 

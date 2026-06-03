@@ -54,6 +54,7 @@ import com.linkpowered.proxy.protocol.netty.MinecraftVarintLengthEncoder;
 import com.linkpowered.proxy.protocol.netty.PlayPacketQueueInboundHandler;
 import com.linkpowered.proxy.protocol.netty.PlayPacketQueueOutboundHandler;
 import com.linkpowered.proxy.protocol.netty.ProxiedAddress;
+import com.linkpowered.proxy.protocol.netty.RawMinecraftPacket;
 import com.linkpowered.proxy.protocol.packet.SetCompressionPacket;
 import com.linkpowered.proxy.util.except.QuietDecoderException;
 import io.netty.buffer.ByteBuf;
@@ -159,6 +160,8 @@ public class MinecraftConnection extends ChannelInboundHandlerAdapter {
         }
       } else if (msg instanceof ProxiedAddress proxiedAddress) {
         this.remoteAddress = proxiedAddress.sourceAddress();
+      } else if (msg instanceof RawMinecraftPacket packet) {
+        activeSessionHandler.handleRaw(packet);
       } else if (msg instanceof ByteBuf buf) {
         activeSessionHandler.handleUnknown(buf);
       }
