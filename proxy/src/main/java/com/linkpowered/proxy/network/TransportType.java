@@ -116,7 +116,7 @@ public enum TransportType {
       return NIO;
     }
 
-    if (IoUring.isAvailable() && Boolean.getBoolean("link.enable-iouring-transport")) {
+    if (IoUring.isAvailable()) {
       return IO_URING;
     }
 

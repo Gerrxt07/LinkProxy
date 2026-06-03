@@ -24,3 +24,17 @@
 2026-06-02T16:29:48+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after default config value sync.
 2026-06-02T16:31:19+02:00 [CODE] [OUTCOMES] Corrected default config sync source to proxy/src/main/resources/default-config.toml and made default-link.toml byte-identical to it.
 2026-06-02T16:31:19+02:00 [TOOL] [OUTCOMES] diff between default-link.toml and default-config.toml is empty; ./gradlew build succeeded.
+2026-06-03T14:10:22+02:00 [USER] [PLANS] Implement GitHub issues #3, #4, and #5; defer #1, #2, and #6.
+2026-06-03T14:10:22+02:00 [CODE] [OUTCOMES] Added .serena/ to .gitignore; replaced Netty HAProxy codec with strict PROXY v2 decoder; added adaptive Netty flush consolidation; moved plugin async executor tasks to virtual threads.
+2026-06-03T14:10:22+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after issue #3/#4/#5 changes.
+2026-06-03T15:19:43+02:00 [CODE] [OUTCOMES] Bumped project version and Fill version family to 1.0.1, pushed branch codex/proxy-performance-1.0.1, and opened draft PR #7 to close GitHub issues #3, #4, and #5 when merged.
+2026-06-03T15:31:17+02:00 [USER] [PLANS] Implement remaining GitHub issues #1, #2, and #6 on the existing performance PR branch.
+2026-06-03T15:31:17+02:00 [CODE] [OUTCOMES] Added FFM-first OpenSSL/libdeflate variants with JNI/Java fallback, made io_uring auto-preferred when Netty reports it available, and wrapped raw retained packet frames in RawMinecraftPacket before zero-copy forwarding.
+2026-06-03T15:31:17+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after issue #1/#2/#6 changes.
+2026-06-03T15:40:16+02:00 [CODE] [OUTCOMES] Removed Java 21 preview-compiled FFM classes after Java 26 runtime rejected class version 65.65535 preview files; existing JNI native libdeflate/OpenSSL paths remain active.
+2026-06-03T15:40:16+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded and ./run-proxy.sh booted to Done without preview class crash; PR #7 should no longer close issue #1 until FFM is reworked without preview class files.
+2026-06-03T15:48:40+02:00 [USER] [DECISIONS] Project should target Java 26, so FFM implementation is acceptable without Java 21 preview class files.
+2026-06-03T15:48:40+02:00 [CODE] [OUTCOMES] Switched Gradle Java toolchain to 26, restored FFM-first libdeflate/OpenSSL variants without preview flags, and kept JNI/Java fallback variants after FFM.
+2026-06-03T15:48:40+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted on Java 26 and logged libdeflate FFM plus OpenSSL FFM loaded before Done.
+2026-06-03T15:59:33+02:00 [CODE] [OUTCOMES] Replaced the plain startup boot log with a colored ASCII Link banner showing the runtime version.
+2026-06-03T15:59:33+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted and showed the Link 1.0.1 banner before channel/plugin logs.

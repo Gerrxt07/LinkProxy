@@ -17,12 +17,12 @@
 
 package com.linkpowered.proxy.plugin.loader;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.linkpowered.api.plugin.PluginContainer;
 import com.linkpowered.api.plugin.PluginDescription;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Implements {@link PluginContainer}.
@@ -57,13 +57,11 @@ public class LinkPluginContainer implements PluginContainer {
       synchronized (this) {
         if (this.service == null) {
           String name = this.description.getName().orElse(this.description.getId());
+          ThreadFactory factory = Thread.ofVirtual()
+              .name(name + " - Virtual Task Executor #", 0)
+              .factory();
           this.service = Executors.unconfigurableExecutorService(
-              Executors.newCachedThreadPool(
-                new ThreadFactoryBuilder().setDaemon(true)
-                    .setNameFormat(name + " - Task Executor #%d")
-                    .setDaemon(true)
-                    .build()
-              )
+              Executors.newThreadPerTaskExecutor(factory)
           );
         }
       }

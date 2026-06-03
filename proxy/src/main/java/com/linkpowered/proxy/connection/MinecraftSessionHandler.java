@@ -18,6 +18,7 @@
 package com.linkpowered.proxy.connection;
 
 import com.linkpowered.proxy.protocol.MinecraftPacket;
+import com.linkpowered.proxy.protocol.netty.RawMinecraftPacket;
 import com.linkpowered.proxy.protocol.packet.AvailableCommandsPacket;
 import com.linkpowered.proxy.protocol.packet.BossBarPacket;
 import com.linkpowered.proxy.protocol.packet.BundleDelimiterPacket;
@@ -102,6 +103,10 @@ public interface MinecraftSessionHandler {
 
   default void handleUnknown(ByteBuf buf) {
 
+  }
+
+  default void handleRaw(RawMinecraftPacket packet) {
+    handleUnknown(packet.content());
   }
 
   default void connected() {

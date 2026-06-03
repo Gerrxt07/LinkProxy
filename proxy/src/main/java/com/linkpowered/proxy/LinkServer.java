@@ -119,6 +119,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class LinkServer implements ProxyServer, ForwardingAudience {
 
   public static final String LINK_URL = "https://papermc.io/software/link";
+  private static final String COLOR_RESET = "\u001B[0m";
+  private static final String COLOR_BLUE = "\u001B[94m";
+  private static final String COLOR_CYAN = "\u001B[96m";
+  private static final String COLOR_GRAY = "\u001B[90m";
 
   private static final Logger logger = LogManager.getLogger(LinkServer.class);
   public static final Gson GENERAL_GSON = new GsonBuilder()
@@ -236,8 +240,8 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
   @EnsuresNonNull({"serverKeyPair", "servers", "pluginManager", "eventManager", "scheduler",
       "console", "cm", "configuration"})
   void start() {
-    logger.info("Booting up {} {}...", getVersion().getName(), getVersion().getVersion());
     console.setupStreams();
+    logStartupBanner();
     pluginManager.registerPlugin(this.createVirtualPlugin());
 
     // Yes, you're reading that correctly. We're generating a 1024-bit RSA keypair. Sounds
@@ -332,6 +336,19 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     if (configuration.isQueryEnabled()) {
       this.cm.queryBind(configuration.getBind().getHostString(), configuration.getQueryPort());
     }
+  }
+
+  private void logStartupBanner() {
+    final ProxyVersion version = getVersion();
+    final String lineSeparator = System.lineSeparator();
+    logger.info(lineSeparator
+        + COLOR_CYAN + " _      _       _" + COLOR_RESET + lineSeparator
+        + COLOR_CYAN + "| |    (_)     | |" + COLOR_RESET + lineSeparator
+        + COLOR_BLUE + "| |     _ _ __ | | __" + COLOR_RESET + lineSeparator
+        + COLOR_BLUE + "| |    | | '_ \\| |/ /" + COLOR_RESET + lineSeparator
+        + COLOR_CYAN + "| |____| | | | |   <" + COLOR_RESET + lineSeparator
+        + COLOR_CYAN + "|______|_|_| |_|_|\\_\\" + COLOR_RESET + lineSeparator
+        + COLOR_GRAY + version.getName() + " " + version.getVersion() + COLOR_RESET);
   }
 
   private void logStartupConfigurationWarnings(InetSocketAddress bindAddress) {

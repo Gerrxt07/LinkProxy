@@ -17,8 +17,10 @@
 
 package com.linkpowered.proxy.network;
 
+import static com.linkpowered.proxy.network.Connections.FLUSH_CONSOLIDATION;
 import static com.linkpowered.proxy.network.Connections.FRAME_DECODER;
 import static com.linkpowered.proxy.network.Connections.FRAME_ENCODER;
+import static com.linkpowered.proxy.network.Connections.HAPROXY_DECODER;
 import static com.linkpowered.proxy.network.Connections.LEGACY_PING_DECODER;
 import static com.linkpowered.proxy.network.Connections.LEGACY_PING_ENCODER;
 import static com.linkpowered.proxy.network.Connections.MINECRAFT_DECODER;
@@ -32,15 +34,16 @@ import com.linkpowered.proxy.connection.client.HandshakeSessionHandler;
 import com.linkpowered.proxy.network.limiter.SimpleBytesPerSecondLimiter;
 import com.linkpowered.proxy.protocol.ProtocolUtils;
 import com.linkpowered.proxy.protocol.StateRegistry;
+import com.linkpowered.proxy.protocol.netty.AdaptiveFlushConsolidationHandler;
 import com.linkpowered.proxy.protocol.netty.LegacyPingDecoder;
 import com.linkpowered.proxy.protocol.netty.LegacyPingEncoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftDecoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftEncoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftVarintFrameDecoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftVarintLengthEncoder;
+import com.linkpowered.proxy.protocol.netty.ProxyProtocolV2Decoder;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
-import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.TimeUnit;
 
@@ -67,7 +70,8 @@ public class ServerChannelInitializer extends ChannelInitializer<Channel> {
         .addLast(LEGACY_PING_ENCODER, LegacyPingEncoder.INSTANCE)
         .addLast(FRAME_ENCODER, MinecraftVarintLengthEncoder.INSTANCE)
         .addLast(MINECRAFT_DECODER, new MinecraftDecoder(ProtocolUtils.Direction.SERVERBOUND))
-        .addLast(MINECRAFT_ENCODER, new MinecraftEncoder(ProtocolUtils.Direction.CLIENTBOUND));
+        .addLast(MINECRAFT_ENCODER, new MinecraftEncoder(ProtocolUtils.Direction.CLIENTBOUND))
+        .addLast(FLUSH_CONSOLIDATION, new AdaptiveFlushConsolidationHandler());
 
     final MinecraftConnection connection = new MinecraftConnection(ch, this.server);
     connection.setActiveSessionHandler(StateRegistry.HANDSHAKE,
@@ -86,7 +90,7 @@ public class ServerChannelInitializer extends ChannelInitializer<Channel> {
       );
     }
     if (this.server.getConfiguration().isProxyProtocol()) {
-      ch.pipeline().addFirst(new HAProxyMessageDecoder());
+      ch.pipeline().addFirst(HAPROXY_DECODER, new ProxyProtocolV2Decoder());
     }
   }
 }

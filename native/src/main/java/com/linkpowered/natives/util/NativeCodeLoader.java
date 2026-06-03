@@ -80,7 +80,7 @@ public final class NativeCodeLoader<T> implements Supplier<T> {
     private final String name;
     private final Supplier<T> object;
     private T constructed;
-    private @Nullable Exception failure;
+    private @Nullable Throwable failure;
 
     Variant(BooleanSupplier possiblyAvailable, Runnable setup, String name, T object) {
       this(possiblyAvailable, setup, name, () -> object);
@@ -105,7 +105,7 @@ public final class NativeCodeLoader<T> implements Supplier<T> {
           setup.run();
           constructed = object.get();
           status = Status.SETUP;
-        } catch (Exception e) {
+        } catch (Throwable e) {
           failure = e;
           status = Status.SETUP_FAILURE;
           return null;
@@ -120,7 +120,7 @@ public final class NativeCodeLoader<T> implements Supplier<T> {
     }
   }
 
-  private record LoadFailure(String variant, Exception failure) {
+  private record LoadFailure(String variant, Throwable failure) {
 
     private String toMessage() {
       String message = failure.getMessage();

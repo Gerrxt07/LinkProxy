@@ -120,7 +120,7 @@ fill {
 
     build {
         channel = BuildChannel.STABLE
-        versionFamily("1.0.0")
+        versionFamily("1.0.1")
         version(projectVersion)
 
         downloads {
@@ -139,7 +139,6 @@ dependencies {
     implementation(libs.bundles.log4j)
     implementation(libs.kyori.ansi)
     implementation(libs.netty.codec)
-    implementation(libs.netty.codec.haproxy)
     implementation(libs.netty.codec.http)
     implementation(libs.netty.handler)
     implementation(libs.netty.transport.native.epoll)
