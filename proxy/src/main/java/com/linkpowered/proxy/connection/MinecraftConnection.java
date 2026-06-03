@@ -53,6 +53,7 @@ import com.linkpowered.proxy.protocol.netty.MinecraftVarintFrameDecoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftVarintLengthEncoder;
 import com.linkpowered.proxy.protocol.netty.PlayPacketQueueInboundHandler;
 import com.linkpowered.proxy.protocol.netty.PlayPacketQueueOutboundHandler;
+import com.linkpowered.proxy.protocol.netty.ProxiedAddress;
 import com.linkpowered.proxy.protocol.packet.SetCompressionPacket;
 import com.linkpowered.proxy.util.except.QuietDecoderException;
 import io.netty.buffer.ByteBuf;
@@ -63,10 +64,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.EventLoop;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.util.ReferenceCountUtil;
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.EnumMap;
@@ -158,9 +157,8 @@ public class MinecraftConnection extends ChannelInboundHandlerAdapter {
         if (!pkt.handle(activeSessionHandler)) {
           activeSessionHandler.handleGeneric(pkt);
         }
-      } else if (msg instanceof HAProxyMessage proxyMessage) {
-        this.remoteAddress = new InetSocketAddress(proxyMessage.sourceAddress(),
-            proxyMessage.sourcePort());
+      } else if (msg instanceof ProxiedAddress proxiedAddress) {
+        this.remoteAddress = proxiedAddress.sourceAddress();
       } else if (msg instanceof ByteBuf buf) {
         activeSessionHandler.handleUnknown(buf);
       }

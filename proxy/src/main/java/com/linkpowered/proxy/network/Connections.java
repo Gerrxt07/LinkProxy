@@ -29,6 +29,8 @@ public class Connections {
   public static final String FLOW_HANDLER = "flow-handler";
   public static final String FRAME_DECODER = "frame-decoder";
   public static final String FRAME_ENCODER = "frame-encoder";
+  public static final String FLUSH_CONSOLIDATION = "flush-consolidation";
+  public static final String HAPROXY_DECODER = "haproxy-decoder";
   public static final String HANDLER = "handler";
   public static final String LEGACY_PING_DECODER = "legacy-ping-decoder";
   public static final String LEGACY_PING_ENCODER = "legacy-ping-encoder";

@@ -18,6 +18,7 @@
 package com.linkpowered.proxy.network;
 
 import static com.linkpowered.proxy.network.Connections.FLOW_HANDLER;
+import static com.linkpowered.proxy.network.Connections.FLUSH_CONSOLIDATION;
 import static com.linkpowered.proxy.network.Connections.FRAME_DECODER;
 import static com.linkpowered.proxy.network.Connections.FRAME_ENCODER;
 import static com.linkpowered.proxy.network.Connections.MINECRAFT_DECODER;
@@ -26,6 +27,7 @@ import static com.linkpowered.proxy.network.Connections.READ_TIMEOUT;
 
 import com.linkpowered.proxy.LinkServer;
 import com.linkpowered.proxy.protocol.ProtocolUtils;
+import com.linkpowered.proxy.protocol.netty.AdaptiveFlushConsolidationHandler;
 import com.linkpowered.proxy.protocol.netty.AutoReadHolderHandler;
 import com.linkpowered.proxy.protocol.netty.MinecraftDecoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftEncoder;
@@ -60,6 +62,7 @@ public class BackendChannelInitializer extends ChannelInitializer<Channel> {
             new MinecraftDecoder(ProtocolUtils.Direction.CLIENTBOUND))
         .addLast(FLOW_HANDLER, new AutoReadHolderHandler())
         .addLast(MINECRAFT_ENCODER,
-            new MinecraftEncoder(ProtocolUtils.Direction.SERVERBOUND));
+            new MinecraftEncoder(ProtocolUtils.Direction.SERVERBOUND))
+        .addLast(FLUSH_CONSOLIDATION, new AdaptiveFlushConsolidationHandler());
   }
 }

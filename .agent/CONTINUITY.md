@@ -24,3 +24,6 @@
 2026-06-02T16:29:48+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after default config value sync.
 2026-06-02T16:31:19+02:00 [CODE] [OUTCOMES] Corrected default config sync source to proxy/src/main/resources/default-config.toml and made default-link.toml byte-identical to it.
 2026-06-02T16:31:19+02:00 [TOOL] [OUTCOMES] diff between default-link.toml and default-config.toml is empty; ./gradlew build succeeded.
+2026-06-03T14:10:22+02:00 [USER] [PLANS] Implement GitHub issues #3, #4, and #5; defer #1, #2, and #6.
+2026-06-03T14:10:22+02:00 [CODE] [OUTCOMES] Added .serena/ to .gitignore; replaced Netty HAProxy codec with strict PROXY v2 decoder; added adaptive Netty flush consolidation; moved plugin async executor tasks to virtual threads.
+2026-06-03T14:10:22+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after issue #3/#4/#5 changes.
