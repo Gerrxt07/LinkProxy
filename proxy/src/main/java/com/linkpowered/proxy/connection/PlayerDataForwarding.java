@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
 public final class PlayerDataForwarding {
   private static final String ALGORITHM = "HmacSHA256";
 
-  public static final String CHANNEL = "link:player_info";
+  public static final String CHANNEL = "velocity:player_info";
 
   public static final int MODERN_DEFAULT = 1;
   public static final int MODERN_WITH_KEY = 2;

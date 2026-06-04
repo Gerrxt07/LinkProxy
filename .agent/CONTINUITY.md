@@ -49,3 +49,6 @@
 2026-06-03T23:00:18+02:00 [TOOL] [OUTCOMES] :link-native cipher test passed; ./gradlew build succeeded; ./run-proxy.sh booted to Done after sandbox bind approval.
 2026-06-04T10:39:18+02:00 [CODE] [OUTCOMES] Fixed online-mode client login encryption ordering by installing AES ciphers immediately after verifying EncryptionResponse and decrypting the shared secret, before async Mojang hasJoined auth.
 2026-06-04T10:39:18+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done on port 25590 with kqueue, libdeflate FFM, and OpenSSL FFM, then was stopped.
+2026-06-04T11:05:17+02:00 [CODE] [OUTCOMES] Fixed local join after login by restoring the modern forwarding login plugin channel to velocity:player_info for Paper compatibility; kept Link branding separate from wire protocol compatibility.
+2026-06-04T11:05:17+02:00 [CODE] [OUTCOMES] Added native AES-CFB8 Java-compatibility validation so incompatible native ciphers fall back before login traffic uses them; macOS run selected Java ciphers after OpenSSL FFM validation failed.
+2026-06-04T11:05:17+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done, player connected through proxy to lobby, and previous backend Velocity-forwarding rejection was gone.

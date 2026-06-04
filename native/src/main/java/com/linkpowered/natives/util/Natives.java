@@ -26,13 +26,19 @@ import com.linkpowered.natives.compression.LinkCompressorFactory;
 import com.linkpowered.natives.encryption.FfmIntelIpSecMbLinkCipher;
 import com.linkpowered.natives.encryption.FfmOpenSslLinkCipher;
 import com.linkpowered.natives.encryption.JavaLinkCipher;
+import com.linkpowered.natives.encryption.LinkCipher;
 import com.linkpowered.natives.encryption.LinkCipherFactory;
 import com.linkpowered.natives.encryption.NativeLinkCipher;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.GeneralSecurityException;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Enumerates all supported natives for Link.
@@ -92,6 +98,61 @@ public class Natives {
     };
   }
 
+  private static LinkCipherFactory requireJavaCompatibleCipher(LinkCipherFactory factory) {
+    if (factory == JavaLinkCipher.FACTORY) {
+      return factory;
+    }
+
+    final byte[] keyBytes = {
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        (byte) 0x88, (byte) 0x99, (byte) 0xaa, (byte) 0xbb,
+        (byte) 0xcc, (byte) 0xdd, (byte) 0xee, (byte) 0xff
+    };
+    final byte[] data = {
+        0x0f, 0x22, 0x35, 0x48, 0x5b, 0x6e, 0x71, (byte) 0x84,
+        (byte) 0x97, (byte) 0xaa, (byte) 0xbd, (byte) 0xd0,
+        (byte) 0xe3, (byte) 0xf6, 0x09, 0x1c, 0x2f, 0x42, 0x55
+    };
+    SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");
+
+    try (LinkCipher nativeEncrypt = factory.forEncryption(key);
+        LinkCipher nativeDecrypt = factory.forDecryption(key);
+        LinkCipher javaEncrypt = JavaLinkCipher.FACTORY.forEncryption(key)) {
+      ByteBuf nativeEncrypted = compatibleBuffer(nativeEncrypt).writeBytes(data);
+      ByteBuf javaEncrypted = Unpooled.buffer(data.length).writeBytes(data);
+      ByteBuf nativeDecrypted = compatibleBuffer(nativeDecrypt).writeBytes(data);
+      try {
+        nativeEncrypt.process(nativeEncrypted);
+        javaEncrypt.process(javaEncrypted);
+        if (!ByteBufUtil.equals(nativeEncrypted, javaEncrypted)) {
+          throw new NativeSetupException("Native AES-CFB8 output does not match Java cipher");
+        }
+
+        nativeDecrypted.clear().writeBytes(javaEncrypted, javaEncrypted.readerIndex(),
+            javaEncrypted.readableBytes());
+        nativeDecrypt.process(nativeDecrypted);
+        if (!ByteBufUtil.equals(nativeDecrypted, Unpooled.wrappedBuffer(data))) {
+          throw new NativeSetupException("Native AES-CFB8 cannot decrypt Java cipher output");
+        }
+      } finally {
+        nativeEncrypted.release();
+        javaEncrypted.release();
+        nativeDecrypted.release();
+      }
+    } catch (GeneralSecurityException e) {
+      throw new NativeSetupException("Unable to validate native AES-CFB8 cipher", e);
+    }
+
+    return factory;
+  }
+
+  private static ByteBuf compatibleBuffer(LinkCipher cipher) {
+    return switch (cipher.preferredBufferType()) {
+      case DIRECT_REQUIRED, DIRECT_PREFERRED -> Unpooled.directBuffer();
+      case HEAP_REQUIRED, HEAP_PREFERRED -> Unpooled.buffer();
+    };
+  }
+
   public static final NativeCodeLoader<LinkCompressorFactory> compress = new NativeCodeLoader<>(
       ImmutableList.of(
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
@@ -146,65 +207,81 @@ public class Natives {
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               loadSystemLibrary("IPSec_MB", FfmIntelIpSecMbLinkCipher::ensureAvailable),
               "Intel IPsec-MB FFM AES-CFB8 (Linux x86_64)",
-              FfmIntelIpSecMbLinkCipher.FACTORY),
+              () -> requireJavaCompatibleCipher(FfmIntelIpSecMbLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher.so"),
-              "OpenSSL FFM local (Linux x86_64)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM local (Linux x86_64)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher.so"), // Any local version
-              "OpenSSL local (Linux x86_64)", NativeLinkCipher.FACTORY),
+              "OpenSSL local (Linux x86_64)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x.so"),
-              "OpenSSL FFM 3.x.x (Linux x86_64)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM 3.x.x (Linux x86_64)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x.so"), // Ubuntu 22.04
-              "OpenSSL 3.x.x (Linux x86_64)", NativeLinkCipher.FACTORY),
+              "OpenSSL 3.x.x (Linux x86_64)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl11x.so"),
-              "OpenSSL FFM 1.1.x (Linux x86_64)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM 1.1.x (Linux x86_64)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl11x.so"), // Ubuntu 20.04
-              "OpenSSL 1.1.x (Linux x86_64)", NativeLinkCipher.FACTORY),
+              "OpenSSL 1.1.x (Linux x86_64)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64_MUSL,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x-musl.so"),
-              "OpenSSL FFM 3.x.x (Linux x86_64, musl)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM 3.x.x (Linux x86_64, musl)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_X86_64_MUSL,
               copyAndLoadNative("/linux_x86_64/link-cipher-ossl30x-musl.so"), // Alpine 3.18
-              "OpenSSL 3.x.x (Linux x86_64, musl)", NativeLinkCipher.FACTORY),
+              "OpenSSL 3.x.x (Linux x86_64, musl)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)),
 
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher.so"),
-              "OpenSSL FFM local (Linux aarch64)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM local (Linux aarch64)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher.so"),
-              "OpenSSL local (Linux aarch64)", NativeLinkCipher.FACTORY), // Any local version
+              "OpenSSL local (Linux aarch64)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)), // Any local version
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x.so"),
-              "OpenSSL FFM 3.x.x (Linux aarch64)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM 3.x.x (Linux aarch64)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x.so"),
-              "OpenSSL 3.x.x (Linux aarch64)", NativeLinkCipher.FACTORY), // Ubuntu 22.04
+              "OpenSSL 3.x.x (Linux aarch64)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)), // Ubuntu 22.04
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl11x.so"),
-              "OpenSSL FFM 1.1.x (Linux aarch64)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM 1.1.x (Linux aarch64)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl11x.so"),
-              "OpenSSL 1.1.x (Linux aarch64)", NativeLinkCipher.FACTORY), // Ubuntu 20.04
+              "OpenSSL 1.1.x (Linux aarch64)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)), // Ubuntu 20.04
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64_MUSL,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x-musl.so"),
-              "OpenSSL FFM 3.x.x (Linux aarch64, musl)", FfmOpenSslLinkCipher.FACTORY),
+              "OpenSSL FFM 3.x.x (Linux aarch64, musl)",
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.LINUX_AARCH64_MUSL,
               copyAndLoadNative("/linux_aarch64/link-cipher-ossl30x-musl.so"),
-              "OpenSSL 3.x.x (Linux aarch64, musl)", NativeLinkCipher.FACTORY), // Alpine 3.18
+              "OpenSSL 3.x.x (Linux aarch64, musl)",
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)), // Alpine 3.18
 
           new NativeCodeLoader.Variant<>(NativeConstraints.MACOS_AARCH64,
               copyAndLoadNative("/macos_arm64/link-cipher.dylib"),
               "OpenSSL FFM (macOS ARM64 / Apple Silicon)",
-              FfmOpenSslLinkCipher.FACTORY),
+              () -> requireJavaCompatibleCipher(FfmOpenSslLinkCipher.FACTORY)),
           new NativeCodeLoader.Variant<>(NativeConstraints.MACOS_AARCH64,
               copyAndLoadNative("/macos_arm64/link-cipher.dylib"),
               "native (macOS ARM64 / Apple Silicon)",
-               NativeLinkCipher.FACTORY),
+              () -> requireJavaCompatibleCipher(NativeLinkCipher.FACTORY)),
 
           new NativeCodeLoader.Variant<>(NativeCodeLoader.ALWAYS, () -> {
           }, "Java", JavaLinkCipher.FACTORY)
