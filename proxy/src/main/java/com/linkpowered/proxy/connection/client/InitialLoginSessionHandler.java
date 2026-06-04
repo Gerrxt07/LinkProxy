@@ -49,6 +49,7 @@ import java.net.http.HttpResponse;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
@@ -195,6 +196,9 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
       }
 
       byte[] decryptedSharedSecret = decryptRsa(serverKeyPair, packet.getSharedSecret());
+      // The client switches to encrypted traffic immediately after sending EncryptionResponse.
+      // Install ciphers before any async auth wait can let encrypted client bytes reach the decoder.
+      mcConnection.enableEncryption(decryptedSharedSecret);
       String serverId = generateServerId(decryptedSharedSecret, serverKeyPair.getPublic());
 
       final String playerIp = ((InetSocketAddress) mcConnection.getRemoteAddress())
@@ -206,6 +210,7 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
       final HttpRequest httpRequest = HttpRequest.newBuilder()
               .setHeader("User-Agent",
                       server.getVersion().getName() + "/" + server.getVersion().getVersion())
+              .timeout(Duration.ofMillis(server.getConfiguration().getReadTimeout()))
               .uri(URI.create(url))
               .build();
       //noinspection resource
@@ -220,18 +225,6 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
             if (throwable != null) {
               logger.error("Unable to authenticate player", throwable);
               inbound.disconnect(Component.translatable("multiplayer.disconnect.authservers_down"));
-              return;
-            }
-
-            // Go ahead and enable encryption. Once the client sends EncryptionResponse, encryption
-            // is enabled.
-            try {
-              mcConnection.enableEncryption(decryptedSharedSecret);
-            } catch (GeneralSecurityException e) {
-              logger.error("Unable to enable encryption for connection", e);
-              // At this point, the connection is encrypted, but something's wrong on our side and
-              // we can't do anything about it.
-              mcConnection.close(true);
               return;
             }
 

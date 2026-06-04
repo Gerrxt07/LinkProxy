@@ -44,3 +44,8 @@
 2026-06-03T19:22:09+02:00 [USER] [PLANS] Implement GitHub issues #14, #15, and #16; keep #12 on hold for Redis/Dragonfly.
 2026-06-03T19:22:09+02:00 [CODE] [OUTCOMES] Started localization loading on a virtual thread, scanned plugin JAR candidates concurrently with virtual threads before dependency resolution, added optional Intel IPsec-MB FFM AES-CFB8 cipher with self-test and fallback, and bumped version to 1.0.3.
 2026-06-03T19:22:09+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done and showed Link 1.0.3.
+2026-06-03T23:00:18+02:00 [USER] [PLANS] Debug local proxy join stuck on Minecraft client "encrypting..." screen.
+2026-06-03T23:00:18+02:00 [CODE] [OUTCOMES] Added configured HTTP connect/read timeouts to Mojang hasJoined auth path so online-mode auth cannot wait forever before enabling connection encryption.
+2026-06-03T23:00:18+02:00 [TOOL] [OUTCOMES] :link-native cipher test passed; ./gradlew build succeeded; ./run-proxy.sh booted to Done after sandbox bind approval.
+2026-06-04T10:39:18+02:00 [CODE] [OUTCOMES] Fixed online-mode client login encryption ordering by installing AES ciphers immediately after verifying EncryptionResponse and decrypting the shared secret, before async Mojang hasJoined auth.
+2026-06-04T10:39:18+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done on port 25590 with kqueue, libdeflate FFM, and OpenSSL FFM, then was stopped.

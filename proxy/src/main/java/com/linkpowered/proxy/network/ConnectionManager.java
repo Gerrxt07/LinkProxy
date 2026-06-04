@@ -40,6 +40,7 @@ import io.netty.util.concurrent.GlobalEventExecutor;
 import io.netty.util.concurrent.MultithreadEventExecutorGroup;
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
@@ -294,6 +295,7 @@ public final class ConnectionManager {
   @SuppressWarnings("checkstyle:MissingJavadocMethod")
   public HttpClient createHttpClient() {
     return HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(this.server.getConfiguration().getConnectTimeout()))
             .executor(this.workerGroup)
             .build();
   }
