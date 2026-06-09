@@ -63,6 +63,8 @@ public class LinkConfiguration implements ProxyConfig {
   @Expose
   private String bind = "0.0.0.0:25565";
   @Expose
+  private String networkTransport = "auto";
+  @Expose
   private String motd = "<aqua>A Link Server";
   @Expose
   private int showMaxPlayers = 500;
@@ -92,12 +94,13 @@ public class LinkConfiguration implements ProxyConfig {
     this.query = query;
   }
 
-  private LinkConfiguration(String bind, String motd, int showMaxPlayers,
+  private LinkConfiguration(String bind, String networkTransport, String motd, int showMaxPlayers,
       boolean preventClientProxyConnections, byte[] forwardingSecret,
       boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging, Servers servers,
       ForcedHosts forcedHosts, Advanced advanced, Query query,
       PacketLimiterConfig packetLimiterConfig) {
     this.bind = bind;
+    this.networkTransport = networkTransport;
     this.motd = motd;
     this.showMaxPlayers = showMaxPlayers;
     this.preventClientProxyConnections = preventClientProxyConnections;
@@ -129,6 +132,16 @@ public class LinkConfiguration implements ProxyConfig {
         logger.error("'bind' option does not specify a valid IP address.", e);
         valid = false;
       }
+    }
+
+    final String normalizedNetworkTransport = networkTransport.toLowerCase(Locale.ROOT);
+    if (!normalizedNetworkTransport.equals("auto")
+        && !normalizedNetworkTransport.equals("nio")
+        && !normalizedNetworkTransport.equals("epoll")
+        && !normalizedNetworkTransport.equals("kqueue")
+        && !normalizedNetworkTransport.equals("io_uring")) {
+      logger.error("'network-transport' must be one of auto, nio, epoll, kqueue, or io_uring.");
+      valid = false;
     }
 
     if (forwardingSecret == null || forwardingSecret.length == 0) {
@@ -300,6 +313,10 @@ public class LinkConfiguration implements ProxyConfig {
     return advanced.getCompressionLevel();
   }
 
+  public String getNetworkTransport() {
+    return networkTransport;
+  }
+
   @Override
   public int getLoginRatelimit() {
     return advanced.getLoginRatelimit();
@@ -410,6 +427,7 @@ public class LinkConfiguration implements ProxyConfig {
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("bind", bind)
+        .add("networkTransport", networkTransport)
         .add("motd", motd)
         .add("showMaxPlayers", showMaxPlayers)
         .add("onlineMode", true)
@@ -440,6 +458,11 @@ public class LinkConfiguration implements ProxyConfig {
         .getResource("default-link.toml");
     if (defaultConfigLocation == null) {
       throw new RuntimeException("Default configuration file does not exist.");
+    }
+    if (Files.notExists(path)) {
+      try (var defaultConfigStream = defaultConfigLocation.openStream()) {
+        Files.copy(defaultConfigStream, path);
+      }
     }
 
     // Create the forwarding-secret file on first-time startup if it doesn't exist
@@ -520,6 +543,7 @@ public class LinkConfiguration implements ProxyConfig {
       final CommentedConfig advancedConfig = config.get("advanced");
       final CommentedConfig queryConfig = config.get("query");
       final String bind = config.getOrElse("bind", "0.0.0.0:25565");
+      final String networkTransport = config.getOrElse("network-transport", "auto");
       final int maxPlayers = config.getIntOrElse("show-max-players", 500);
       final boolean preventClientProxyConnections = config.getOrElse(
               "prevent-client-proxy-connections", false);
@@ -534,6 +558,7 @@ public class LinkConfiguration implements ProxyConfig {
 
       return new LinkConfiguration(
               bind,
+              networkTransport,
               motd,
               maxPlayers,
               preventClientProxyConnections,

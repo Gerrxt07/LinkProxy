@@ -156,7 +156,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
   private static final int PRE_SHUTDOWN_TIMEOUT =
             Integer.getInteger("link.pre-shutdown-timeout", 10);
 
-  private final ConnectionManager cm;
+  private @MonotonicNonNull ConnectionManager cm;
   private final ProxyOptions options;
   private @MonotonicNonNull LinkConfiguration configuration;
   private @MonotonicNonNull KeyPair serverKeyPair;
@@ -183,7 +183,6 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     commandManager = new LinkCommandManager(eventManager, pluginManager);
     scheduler = new LinkScheduler(pluginManager);
     console = new LinkConsole(this);
-    cm = new ConnectionManager(this);
     servers = new ServerMap(this);
     serverListPingHandler = new ServerListPingHandler(this);
     this.options = options;
@@ -255,8 +254,6 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     // If you are using Minecraft in a security-sensitive application, *I don't know what to say.*
     serverKeyPair = EncryptionUtils.createRsaKeyPair(1024);
 
-    cm.logChannelInformation();
-
     // Initialize commands first
     final BrigadierCommand linkParentCommand = LinkCommand.create(this);
     commandManager.register(
@@ -291,6 +288,8 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     new SendCommand(this).register();
 
     this.doStartupConfigLoad();
+    cm = new ConnectionManager(this, configuration.getNetworkTransport());
+    cm.logChannelInformation();
 
     final CompletableFuture<Void> translationsFuture = registerTranslationsAsync();
 
@@ -590,6 +589,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     if (queryEnabled && (!queryAlreadyEnabled || queryPortChanged)) {
       this.cm.queryBind(newConfiguration.getBind().getHostString(),
           newConfiguration.getQueryPort());
+    }
+
+    if (!configuration.getNetworkTransport().equalsIgnoreCase(newConfiguration.getNetworkTransport())) {
+      logger.warn("network-transport changes require a full proxy restart to take effect.");
     }
 
     commandManager.setAnnounceProxyCommands(newConfiguration.isAnnounceProxyCommands());

@@ -109,7 +109,7 @@ public enum InformationUtils {
     envInfo.addProperty("javaVendor", System.getProperty("java.vendor"));
 
     JsonObject listenerInfo = new JsonObject();
-    listenerInfo.addProperty("listenerType", TransportType.bestType().toString());
+    listenerInfo.addProperty("listenerType", TransportType.bestType("auto").toString());
     listenerInfo.addProperty("compression", Natives.compress.getLoadedVariant());
     listenerInfo.addProperty("encryption", Natives.cipher.getLoadedVariant());
 

@@ -13,6 +13,7 @@ application {
     applicationDefaultJvmArgs += listOf(
         "--add-modules=jdk.incubator.vector",
         "--enable-native-access=ALL-UNNAMED",
+        "--enable-final-field-mutation=ALL-UNNAMED",
     )
 }
 
@@ -117,6 +118,7 @@ tasks {
         standardInput = System.`in`
         jvmArgs("--add-modules=jdk.incubator.vector")
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+        jvmArgs("--enable-final-field-mutation=ALL-UNNAMED")
     }
     named<JavaExec>("run") {
         workingDir = file("run").also(File::mkdirs)

@@ -111,30 +111,35 @@ public enum TransportType {
    *
    * @return the transport to use
    */
-  public static TransportType bestType() {
+  public static TransportType bestType(String configuredTransport) {
     if (Boolean.getBoolean("link.disable-native-transport")) {
       return NIO;
     }
 
     String requestedTransport = System.getProperty("link.transport");
+    if (requestedTransport == null || requestedTransport.isBlank()) {
+      requestedTransport = configuredTransport;
+    }
     if (requestedTransport != null && !requestedTransport.isBlank()) {
-      for (TransportType type : values()) {
-        if (type.name.equalsIgnoreCase(requestedTransport)
-            || type.name().equalsIgnoreCase(requestedTransport)) {
-          if (type.isAvailable()) {
-            return type;
+      if (!"auto".equalsIgnoreCase(requestedTransport)) {
+        for (TransportType type : values()) {
+          if (type.name.equalsIgnoreCase(requestedTransport)
+              || type.name().equalsIgnoreCase(requestedTransport)) {
+            if (type.isAvailable()) {
+              return type;
+            }
+            break;
           }
-          break;
         }
       }
     }
 
-    if (IoUring.isAvailable()) {
-      return IO_URING;
-    }
-
     if (Epoll.isAvailable()) {
       return EPOLL;
+    }
+
+    if (IoUring.isAvailable()) {
+      return IO_URING;
     }
 
     if (KQueue.isAvailable()) {
@@ -156,6 +161,49 @@ public enum TransportType {
       case KQUEUE -> KQueue.isAvailable();
       case IO_URING -> IoUring.isAvailable();
     };
+  }
+
+  /**
+   * Returns the concrete Netty server channel class used by this transport.
+   *
+   * @return server channel class name
+   */
+  public String serverChannelClassName() {
+    return switch (this) {
+      case NIO -> NioServerSocketChannel.class.getSimpleName();
+      case EPOLL -> EpollServerSocketChannel.class.getSimpleName();
+      case KQUEUE -> KQueueServerSocketChannel.class.getSimpleName();
+      case IO_URING -> IoUringServerSocketChannel.class.getSimpleName();
+    };
+  }
+
+  /**
+   * Returns the concrete Netty socket channel class used by this transport.
+   *
+   * @return socket channel class name
+   */
+  public String socketChannelClassName() {
+    return switch (this) {
+      case NIO -> NioSocketChannel.class.getSimpleName();
+      case EPOLL -> EpollSocketChannel.class.getSimpleName();
+      case KQUEUE -> KQueueSocketChannel.class.getSimpleName();
+      case IO_URING -> IoUringSocketChannel.class.getSimpleName();
+    };
+  }
+
+  /**
+   * Returns why this transport is unavailable on the current host.
+   *
+   * @return unavailability reason
+   */
+  public String unavailabilityReason() {
+    Throwable cause = switch (this) {
+      case NIO -> null;
+      case EPOLL -> Epoll.unavailabilityCause();
+      case KQUEUE -> KQueue.unavailabilityCause();
+      case IO_URING -> IoUring.unavailabilityCause();
+    };
+    return cause == null ? "available" : cause.getMessage();
   }
 
   /**

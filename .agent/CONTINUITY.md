@@ -52,3 +52,13 @@
 2026-06-04T11:05:17+02:00 [CODE] [OUTCOMES] Fixed local join after login by restoring the modern forwarding login plugin channel to velocity:player_info for Paper compatibility; kept Link branding separate from wire protocol compatibility.
 2026-06-04T11:05:17+02:00 [CODE] [OUTCOMES] Added native AES-CFB8 Java-compatibility validation so incompatible native ciphers fall back before login traffic uses them; macOS run selected Java ciphers after OpenSSL FFM validation failed.
 2026-06-04T11:05:17+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done, player connected through proxy to lobby, and previous backend Velocity-forwarding rejection was gone.
+2026-06-04T19:30:22+02:00 [CODE] [OUTCOMES] Added startup runtime/network logging for OS, architecture, Java version, active Netty transport, channel classes, event loop group class, compression variant, and cipher variant.
+2026-06-04T19:30:22+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; local sandbox boot printed runtime/network/native lines before bind permission failure, and Linux container boot showed io_uring plus FFM native acceleration before Done.
+2026-06-04T22:27:02+02:00 [CODE] [OUTCOMES] Changed automatic Linux transport preference to epoll before io_uring after OrbStack Linux aarch64 io_uring showed client ping/connect trouble while epoll reached backend connect; explicit -Dlink.transport=io_uring still works.
+2026-06-04T22:27:02+02:00 [CODE] [OUTCOMES] Added --enable-final-field-mutation=ALL-UNNAMED to run-proxy.sh and Gradle runShadow args to suppress Java 26 Gson final-field mutation warning during profile parsing.
+2026-06-04T22:27:02+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded after epoll preference and JVM arg changes.
+2026-06-05T16:11:19+02:00 [CODE] [OUTCOMES] Added top-level network-transport config with auto/epoll/io_uring/kqueue/nio values; auto prefers epoll before io_uring on Linux and transport changes require full restart after reload.
+2026-06-05T16:11:19+02:00 [CODE] [OUTCOMES] Moved ConnectionManager initialization after startup config load so configured transport is used before Netty event loops are created.
+2026-06-05T16:11:19+02:00 [TOOL] [OUTCOMES] ./gradlew build succeeded; ./run-proxy.sh booted to Done on macOS with network-transport auto selecting kqueue, then was stopped.
+2026-06-05T16:44:40+02:00 [CODE] [OUTCOMES] Fixed first-run link.toml formatting by copying default-link.toml bytes to a missing config path before NightConfig loads, preserving comments, blank lines, and spacing instead of letting NightConfig render defaults compactly.
+2026-06-05T16:44:40+02:00 [TOOL] [OUTCOMES] ./gradlew build could not run: sandbox blocked ~/.gradle lock and escalation review timed out twice.

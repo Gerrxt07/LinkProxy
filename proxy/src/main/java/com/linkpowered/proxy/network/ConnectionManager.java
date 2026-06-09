@@ -74,9 +74,9 @@ public final class ConnectionManager {
    *
    * @param server a reference to the Link server
    */
-  public ConnectionManager(LinkServer server) {
+  public ConnectionManager(LinkServer server, String configuredTransport) {
     this.server = server;
-    this.transportType = TransportType.bestType();
+    this.transportType = TransportType.bestType(configuredTransport);
     this.bossGroup = this.transportType.createEventLoopGroup(TransportType.Type.BOSS);
     this.workerGroup = this.transportType.createEventLoopGroup(TransportType.Type.WORKER);
     this.serverChannelInitializer = new ServerChannelInitializerHolder(
@@ -90,14 +90,36 @@ public final class ConnectionManager {
    * Logs the selected network transport and native acceleration status.
    */
   public void logChannelInformation() {
-    LOGGER.info("Connections will use {} channels, {} compression, {} ciphers", this.transportType,
+    LOGGER.info("Runtime: OS={} {} ({}) Java={} ({})",
+        System.getProperty("os.name"),
+        System.getProperty("os.version"),
+        System.getProperty("os.arch"),
+        Runtime.version(),
+        System.getProperty("java.vm.name"));
+    LOGGER.info("Network: Netty transport={} serverChannel={} socketChannel={} bossGroup={} "
+            + "workerGroup={}",
+        this.transportType,
+        this.transportType.serverChannelClassName(),
+        this.transportType.socketChannelClassName(),
+        this.bossGroup.getClass().getSimpleName(),
+        this.workerGroup.getClass().getSimpleName());
+    LOGGER.info("Native acceleration: compression={} cipher={}",
         Natives.compress.getLoadedVariant(), Natives.cipher.getLoadedVariant());
     String requestedTransport = System.getProperty("link.transport");
+    if (requestedTransport == null || requestedTransport.isBlank()) {
+      requestedTransport = this.server.getConfiguration().getNetworkTransport();
+    }
     if (requestedTransport != null && !requestedTransport.isBlank()
+        && !"auto".equalsIgnoreCase(requestedTransport)
         && !this.transportType.toString().equalsIgnoreCase(requestedTransport)
         && !this.transportType.name().equalsIgnoreCase(requestedTransport)) {
       LOGGER.warn("Requested network transport {} is unavailable; using {} instead.",
           requestedTransport, this.transportType);
+    }
+    for (TransportType type : TransportType.values()) {
+      if (type != TransportType.NIO && !type.isAvailable()) {
+        LOGGER.debug("Netty transport {} unavailable: {}", type, type.unavailabilityReason());
+      }
     }
     Natives.compress.getFallbackReason()
         .ifPresent(reason -> LOGGER.warn("Native compression unavailable; using Java fallback. {}",
