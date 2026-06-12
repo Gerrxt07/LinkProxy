@@ -1,8 +1,7 @@
 # LinkProxy
 
-LinkProxy is our Minecraft proxy build for the LinkPowered network. It is based on
-PaperMC Link and is maintained with the network-specific reliability and
-operations changes we need in production.
+LinkProxy is our Minecraft proxy build. It is based on PaperMC Velocity and is maintained with 
+the network-specific reliability and operations changes we need in production.
 
 ## What changed in this version
 
@@ -63,4 +62,4 @@ current network environment before production use.
 
 ## License
 
-LinkProxy inherits the GPLv3 license from Link.
+LinkProxy inherits the GPLv3 license from Velocity.
