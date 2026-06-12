@@ -45,8 +45,10 @@ import org.jetbrains.annotations.NotNull;
 public class PlayPacketQueueInboundHandler extends ChannelDuplexHandler {
 
   private static final int MAXIMUM_SIZE = Integer.getInteger("link.maximum-play-queue-size", 128 * 1024 * 1024); // 128MiB by default
+  private static final int MAXIMUM_PACKETS = Integer.getInteger("link.maximum-play-queue-packets", 10_000);
   private static final QuietDecoderException QUEUE_LIMIT_FAILED = new QuietDecoderException(
-      "Queue too big (greater than " + MAXIMUM_SIZE + " bytes)");
+      "Queue too big (greater than " + MAXIMUM_SIZE + " bytes or "
+          + MAXIMUM_PACKETS + " packets)");
 
   private final StateRegistry.PacketRegistry.ProtocolRegistry registry;
   private final Queue<Object> queue = new ArrayDeque<>();
@@ -80,7 +82,7 @@ public class PlayPacketQueueInboundHandler extends ChannelDuplexHandler {
       // keep track of bytebufs wrapped inside packets
       length = ((ByteBufHolder) msg).content().readableBytes();
     }
-    if (this.queueSize + length > MAXIMUM_SIZE) {
+    if (length > MAXIMUM_SIZE - this.queueSize || this.queue.size() >= MAXIMUM_PACKETS) {
       ReferenceCountUtil.release(msg);
       throw QUEUE_LIMIT_FAILED;
     }
