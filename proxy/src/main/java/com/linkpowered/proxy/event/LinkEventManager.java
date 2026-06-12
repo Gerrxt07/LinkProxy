@@ -93,13 +93,19 @@ public class LinkEventManager implements EventManager {
 
   private static final Comparator<HandlerRegistration> handlerComparator =
       Collections.reverseOrder(Comparator.comparingInt(o -> o.order));
+  private static final HandlersCache EMPTY_HANDLERS_CACHE =
+      new HandlersCache(AsyncType.NEVER, new HandlerRegistration[0]);
 
   private final PluginManager pluginManager;
 
   private final ListMultimap<Class<?>, HandlerRegistration> handlersByType =
       ArrayListMultimap.create();
-  private final LoadingCache<Class<?>, HandlersCache> handlersCache =
-      Caffeine.newBuilder().build(this::bakeHandlers);
+  private final ClassValue<HandlersCache> handlersCache = new ClassValue<>() {
+    @Override
+    protected HandlersCache computeValue(final Class<?> type) {
+      return bakeHandlers(type);
+    }
+  };
 
   private final LoadingCache<Method, UntargetedEventHandler> untargetedMethodHandlers =
       Caffeine.newBuilder().weakValues().build(this::buildUntargetedMethodHandler);
@@ -187,7 +193,7 @@ public class LinkEventManager implements EventManager {
     }
   }
 
-  private @Nullable HandlersCache bakeHandlers(final Class<?> eventType) {
+  private HandlersCache bakeHandlers(final Class<?> eventType) {
     final List<HandlerRegistration> baked = new ArrayList<>();
     final Collection<Class<?>> types = eventTypeTracker.getFriendsOf(eventType);
 
@@ -201,7 +207,7 @@ public class LinkEventManager implements EventManager {
     }
 
     if (baked.isEmpty()) {
-      return null;
+      return EMPTY_HANDLERS_CACHE;
     }
 
     baked.sort(handlerComparator);
@@ -377,10 +383,10 @@ public class LinkEventManager implements EventManager {
       lock.writeLock().unlock();
     }
     // Invalidate all the affected event subtypes
-    handlersCache.invalidateAll(registrations.stream()
+    registrations.stream()
         .flatMap(registration -> eventTypeTracker.getFriendsOf(registration.eventType).stream())
         .distinct()
-        .collect(Collectors.toList()));
+        .forEach(this.handlersCache::remove);
   }
 
   @Override
@@ -491,10 +497,10 @@ public class LinkEventManager implements EventManager {
     }
 
     // Invalidate all the affected event subtypes
-    handlersCache.invalidateAll(removed.stream()
+    removed.stream()
         .flatMap(registration -> eventTypeTracker.getFriendsOf(registration.eventType).stream())
         .distinct()
-        .collect(Collectors.toList()));
+        .forEach(this.handlersCache::remove);
   }
 
   /**

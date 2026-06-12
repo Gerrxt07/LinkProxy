@@ -20,8 +20,8 @@ package com.linkpowered.proxy.connection.player.bossbar;
 import com.linkpowered.proxy.adventure.LinkBossBarImplementation;
 import com.linkpowered.proxy.connection.client.ConnectedPlayer;
 import com.linkpowered.proxy.protocol.packet.BossBarPacket;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles dropping and resending boss bar packets on versions 1.20.2 and newer because the client now
@@ -30,9 +30,9 @@ import java.util.Set;
 public final class BossBarManager {
 
   private final ConnectedPlayer player;
-  private final Set<LinkBossBarImplementation> bossBars = new HashSet<>();
+  private final Set<LinkBossBarImplementation> bossBars = ConcurrentHashMap.newKeySet();
 
-  private boolean dropPackets = false;
+  private volatile boolean dropPackets = false;
 
   public BossBarManager(ConnectedPlayer player) {
     this.player = player;
@@ -42,7 +42,7 @@ public final class BossBarManager {
    * Records the specified boss bar to be re-sent when a player changes server, and sends the update packet
    * if the client is able to receive it and not be disconnected.
    */
-  public synchronized void writeUpdate(LinkBossBarImplementation bar, BossBarPacket packet) {
+  public void writeUpdate(LinkBossBarImplementation bar, BossBarPacket packet) {
     this.bossBars.add(bar);
     if (!this.dropPackets) {
       this.player.getConnection().write(packet);
@@ -52,7 +52,7 @@ public final class BossBarManager {
   /**
    * Removes the specified boss bar from the player to ensure it is not re-sent.
    */
-  public synchronized void remove(LinkBossBarImplementation bar, BossBarPacket packet) {
+  public void remove(LinkBossBarImplementation bar, BossBarPacket packet) {
     this.bossBars.remove(bar);
     if (!this.dropPackets) {
       this.player.getConnection().write(packet);
@@ -63,7 +63,7 @@ public final class BossBarManager {
    * Re-creates the boss bars the player can see with any updates that may have occurred in the meantime,
    * and allows update packets for those boss bars to be sent.
    */
-  public synchronized void sendBossBars() {
+  public void sendBossBars() {
     for (LinkBossBarImplementation bossBar : bossBars) {
       bossBar.createDirect(player);
     }
@@ -73,7 +73,7 @@ public final class BossBarManager {
   /**
    * Prevents the player from receiving boss bar update packets while logging in to a new server.
    */
-  public synchronized void dropPackets() {
+  public void dropPackets() {
     this.dropPackets = true;
   }
 }
