@@ -47,4 +47,18 @@ class CaffeineCacheRatelimiterTest {
     assertTrue(ratelimiter.attempt(InetAddress.getLoopbackAddress()));
   }
 
+  @Test
+  void enforcesMaximumCacheSize() {
+    long base = System.nanoTime();
+    Ticker testTicker = () -> base;
+    CaffeineCacheRatelimiter<String> ratelimiter = new CaffeineCacheRatelimiter<>(
+        1, TimeUnit.MINUTES, testTicker, 2);
+
+    assertTrue(ratelimiter.attempt("first"));
+    assertTrue(ratelimiter.attempt("second"));
+    assertTrue(ratelimiter.attempt("third"));
+
+    assertTrue(ratelimiter.estimatedSize() <= 2);
+  }
+
 }

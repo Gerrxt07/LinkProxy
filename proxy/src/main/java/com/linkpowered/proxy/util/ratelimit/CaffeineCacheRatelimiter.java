@@ -30,6 +30,9 @@ import org.jetbrains.annotations.NotNull;
  */
 public class CaffeineCacheRatelimiter<T> implements Ratelimiter<T> {
 
+  private static final long DEFAULT_MAXIMUM_SIZE = Long.getLong(
+      "link.ratelimiter-cache-maximum-size", 100_000L);
+
   private final Cache<T, Long> expiringCache;
   private final long timeoutNanos;
 
@@ -39,11 +42,18 @@ public class CaffeineCacheRatelimiter<T> implements Ratelimiter<T> {
 
   @VisibleForTesting
   CaffeineCacheRatelimiter(long time, TimeUnit unit, Ticker ticker) {
+    this(time, unit, ticker, DEFAULT_MAXIMUM_SIZE);
+  }
+
+  @VisibleForTesting
+  CaffeineCacheRatelimiter(long time, TimeUnit unit, Ticker ticker, long maximumSize) {
     Preconditions.checkNotNull(unit, "unit");
     Preconditions.checkNotNull(ticker, "ticker");
+    Preconditions.checkArgument(maximumSize > 0, "maximumSize must be positive");
     this.timeoutNanos = unit.toNanos(time);
     this.expiringCache = Caffeine.newBuilder()
         .ticker(ticker)
+        .maximumSize(maximumSize)
         .expireAfterWrite(time, unit)
         .build();
   }
@@ -59,5 +69,11 @@ public class CaffeineCacheRatelimiter<T> implements Ratelimiter<T> {
     long expectedNewValue = System.nanoTime() + timeoutNanos;
     long last = expiringCache.get(key, (key1) -> expectedNewValue);
     return expectedNewValue == last;
+  }
+
+  @VisibleForTesting
+  long estimatedSize() {
+    this.expiringCache.cleanUp();
+    return this.expiringCache.estimatedSize();
   }
 }
