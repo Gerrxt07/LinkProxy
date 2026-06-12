@@ -317,8 +317,8 @@ public final class ConnectionManager {
   @SuppressWarnings("checkstyle:MissingJavadocMethod")
   public HttpClient createHttpClient() {
     return HttpClient.newBuilder()
+            // Keep HTTP response callbacks off Netty's event loops.
             .connectTimeout(Duration.ofMillis(this.server.getConfiguration().getConnectTimeout()))
-            .executor(this.workerGroup)
             .build();
   }
 
