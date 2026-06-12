@@ -142,6 +142,9 @@ public class HandshakeSessionHandler implements MinecraftSessionHandler {
     }
 
     connection.setType(getHandshakeConnectionType(handshake));
+    LOGGER.info("Login handshake from {} protocol {} host {} type {}",
+        connection.getRemoteAddress(), handshake.getProtocolVersion(), handshake.getServerAddress(),
+        connection.getType().getClass().getSimpleName());
 
     // If the proxy is configured for modern forwarding, we must deny connections from 1.12.2
     // and lower, otherwise IP information will never get forwarded.

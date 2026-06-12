@@ -116,6 +116,8 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
     }
     inbound.setPlayerKey(playerKey);
     this.login = packet;
+    logger.info("Login packet from {} username {} protocol {}", mcConnection.getRemoteAddress(),
+        packet.getUsername(), mcConnection.getProtocolVersion());
 
     final PreLoginEvent event = new PreLoginEvent(inbound, login.getUsername(), login.getHolderUuid());
     server.getEventManager().fire(event).thenRunAsync(() -> {

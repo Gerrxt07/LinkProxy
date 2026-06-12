@@ -76,7 +76,7 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
     in.skipBytes(HEADER_LENGTH);
     if (command == COMMAND_LOCAL) {
       in.skipBytes(addressLength);
-      ctx.pipeline().remove(this);
+      removeSelfAndForwardRemainder(ctx, in, out);
       return;
     }
     if (command != COMMAND_PROXY) {
@@ -116,6 +116,7 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
     in.skipBytes(bytesPerAddress);
     int sourcePort = packet.getUnsignedShort(HEADER_LENGTH + (bytesPerAddress * 2L));
     in.skipBytes(2);
+    in.skipBytes(2); // destination port
     in.skipBytes(addressLength - minimumAddressLength);
 
     InetAddress sourceAddress = InetAddress.getByAddress(sourceAddressBytes);
@@ -125,7 +126,14 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
       return;
     }
     out.add(new ProxiedAddress(proxiedAddress));
+    removeSelfAndForwardRemainder(ctx, in, out);
+  }
+
+  private void removeSelfAndForwardRemainder(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
     ctx.pipeline().remove(this);
+    if (in.isReadable()) {
+      out.add(in.readRetainedSlice(in.readableBytes()));
+    }
   }
 
   protected boolean shouldDropSource(InetSocketAddress sourceAddress) {

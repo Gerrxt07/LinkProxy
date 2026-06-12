@@ -1,42 +1,66 @@
-# Link
+# LinkProxy
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/PaperMC/Link/gradle.yml)](https://papermc.io/downloads/link)
-[![Join our Discord](https://img.shields.io/discord/289587909051416579.svg?logo=discord&label=)](https://discord.gg/papermc)
+LinkProxy is our Minecraft proxy build for the LinkPowered network. It is based on
+PaperMC Link and is maintained with the network-specific reliability and
+operations changes we need in production.
 
-A Minecraft server proxy with unparalleled server support, scalability,
-and flexibility.
+## What changed in this version
 
-Link is licensed under the GPLv3 license.
+This version improves connection visibility and fixes early-pipeline packet
+forwarding around login and proxy protocol handling.
 
-## Goals
+* Login handshakes now log the remote address, protocol version, requested host,
+  and resolved connection type.
+* Login packets now log the remote address, username, and client protocol version
+  before pre-login processing starts.
+* Auth sessions now log the player name, online-mode state, and protocol version
+  when authentication activates.
+* Legacy ping decoding now forwards any unread bytes after the decoder removes
+  itself from the Netty pipeline.
+* PROXY protocol v2 decoding now forwards remaining bytes for both LOCAL and
+  PROXY commands after the proxied address is handled.
+* PROXY protocol v2 address parsing now consumes the destination port explicitly,
+  keeping the byte reader aligned with the protocol frame.
 
-* A codebase that is easy to dive into and consistently follows best practices
-  for Java projects as much as reasonably possible.
-* High performance: handle thousands of players on one proxy.
-* A new, refreshing API built from the ground up to be flexible and powerful
-  whilst avoiding design mistakes and suboptimal designs from other proxies.
-* First-class support for Paper, Sponge, Fabric and Forge. (Other implementations
-  may work, but we make every endeavor to support these server implementations
-  specifically.)
-  
+## Benefits for our system
+
+These changes make LinkProxy easier to operate and safer under mixed client and
+upstream traffic patterns.
+
+* Faster troubleshooting: connection, login, and auth logs provide enough context
+  to trace a player from handshake through authentication without attaching a
+  debugger or adding temporary log patches.
+* Better protocol resilience: leftover bytes are preserved when early decoders
+  finish, which prevents valid client data from being stranded after legacy ping
+  or PROXY protocol detection.
+* Cleaner load balancer support: PROXY protocol v2 LOCAL and PROXY commands now
+  exit the decoder consistently while passing subsequent Minecraft data onward.
+* Lower operational risk: the additional logging focuses on connection metadata
+  that helps diagnose protocol/version/routing issues while avoiding invasive
+  packet dumps.
+
 ## Building
 
-Link is built with [Gradle](https://gradle.org). We recommend using the
-wrapper script (`./gradlew`) as our CI builds using it.
+LinkProxy is built with Gradle. Use the wrapper included in this repository:
 
-It is sufficient to run `./gradlew build` to run the full build cycle.
+```bash
+./gradlew build
+```
+
+The runnable proxy artifact is produced under `proxy/build/libs`.
 
 ## Running
 
-Once you've built Link, you can copy and run the `-all` JAR from
-`proxy/build/libs`. Link will generate a default configuration file
-and you can configure it from there.
+After building, start the proxy with the generated all-in-one JAR from
+`proxy/build/libs`, or use the local helper script when running from this checkout:
 
-Alternatively, you can get the proxy JAR from the [downloads](https://papermc.io/downloads/link)
-page.
+```bash
+./run-proxy.sh
+```
 
-# Localisation
+Runtime configuration is generated on first start and should be adjusted for the
+current network environment before production use.
 
-Translations are handled using [Crowdin](https://papermc-io.crowdin.com/link).
-If you want to translate a language not available on Crowdin,
-you might want to ask in the [Discord](https://discord.gg/papermc) about it.
+## License
+
+LinkProxy inherits the GPLv3 license from Link.

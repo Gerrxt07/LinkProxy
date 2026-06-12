@@ -81,6 +81,8 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
 
   @Override
   public void activated() {
+    logger.info("Auth session activated for {} onlineMode {} protocol {}", profile.getName(),
+        onlineMode, mcConnection.getProtocolVersion());
     // Some connection types may need to alter the game profile.
     profile = mcConnection.getType().addGameProfileTokensIfRequired(profile);
     GameProfileRequestEvent profileRequestEvent = new GameProfileRequestEvent(inbound, profile,

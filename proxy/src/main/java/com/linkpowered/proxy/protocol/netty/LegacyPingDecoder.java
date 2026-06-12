@@ -70,6 +70,9 @@ public class LegacyPingDecoder extends ByteToMessageDecoder {
     } else {
       in.readerIndex(originalReaderIndex);
       ctx.pipeline().remove(this);
+      if (in.isReadable()) {
+        out.add(in.readRetainedSlice(in.readableBytes()));
+      }
     }
   }
 
