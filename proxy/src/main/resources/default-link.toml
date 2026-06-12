@@ -1,163 +1,143 @@
-# Config version. Do not change this
+# Config version. Do not change this value manually.
 config-version = "2.8"
 
-# What port should the proxy be bound to? By default, we'll bind to all addresses on port 25590.
+# Network binding and transport
+# The proxy listens on all interfaces at port 25590 by default.
 bind = "0.0.0.0:25590"
 
-# Which Netty transport should Link use? "auto" prefers epoll on Linux, kqueue on macOS,
-# and falls back when unavailable. You can force "epoll", "io_uring", "kqueue", or "nio".
+# Netty transport mode. "auto" prefers epoll on Linux, kqueue on macOS,
+# and falls back when the native transport is unavailable.
+# Supported values: "auto", "epoll", "io_uring", "kqueue", "nio".
 network-transport = "auto"
 
-# What should be the MOTD? This gets displayed when the player adds your server to
-# their server list. Only MiniMessage format is accepted.
+# Server list display
+# MOTD shown in the multiplayer server list. MiniMessage format is required.
 motd = "<#09add3>A Link Proxy Server"
 
-# What should we display for the maximum number of players? (Link does not support a cap
-# on the number of players online.)
+# Maximum player count shown in the server list ping response.
+# Link does not enforce this as a hard player cap.
 show-max-players = 500
 
-# If client's ISP/AS sent from this proxy is different from the one from Mojang's
-# authentication server, the player is kicked. This disallows some VPN and proxy
-# connections but is a weak form of protection.
+# Authentication and forwarding
+# Kick clients whose ISP/AS differs from Mojang's authentication server result.
+# This blocks some VPN/proxy connections, but should be treated as weak protection.
 prevent-client-proxy-connections = false
 
 # Link always forwards player IPs and UUIDs using modern forwarding.
-# Configure a file that contains a unique secret here.
-# The file is expected to be UTF-8 encoded and not empty.
+# The file must exist or will be generated on first startup.
 forwarding-secret-file = "forwarding.secret"
 
-# If enabled (default is false) and the proxy is in online mode, Link will kick
-# any existing player who is online if a duplicate connection attempt is made.
+# Kick the currently connected player when a duplicate login is accepted.
 kick-existing-players = false
 
-# If not enabled (default is true) player IP addresses will be replaced by <ip address withheld> in logs
+# When disabled, player IP addresses are replaced with <ip address withheld> in logs.
 enable-player-address-logging = true
 
-[packet-limiter]
-# Size of the moving time window in seconds used to calculate average rates.
-# A larger window tolerates short bursts while still enforcing the configured limits over time.
-interval = 7
-# Maximum average number of packets per second a client may send. -1 disables this check.
-packets-per-second = -1
-# Maximum average number of compressed (on-wire) bytes per second a client may send. -1 disables this check.
-bytes-per-second = -1
-# Maximum average number of decompressed bytes per second a client may send.
-# Protects against compression bomb attacks where small packets expand to excessive sizes after decompression.
-# -1 disables this check.
-decompressed-bytes-per-second = 5242880
-
 [servers]
-# Configure your servers here. Each key represents the server's name, and the value
-# represents the IP address of the server to connect to.
+# Backend servers available to the proxy. Each key is the server name and each
+# value is the backend address the proxy should connect to.
 lobby = "127.0.0.1:30066"
-factions = "127.0.0.1:30067"
-minigames = "127.0.0.1:30068"
 
-# In what order we should try servers when a player logs in or is kicked from a server.
+# Server fallback order used on login and when a player is kicked from a backend.
 try = [
     "lobby"
 ]
 
 [forced-hosts]
-# Configure your forced hosts here.
-"lobby.example.com" = [
-    "lobby"
-]
-"factions.example.com" = [
-    "factions"
-]
-"minigames.example.com" = [
-    "minigames"
-]
+# Optional hostname-based routing.
+# Example:
+# "lobby.example.com" = ["lobby"]
 
 [advanced]
-# How large a Minecraft packet has to be before we compress it. Setting this to zero will
-# compress all packets, and setting it to -1 will disable compression entirely.
+# Compress packets at or above this size in bytes.
+# Use 0 to compress every packet or -1 to disable compression.
 compression-threshold = 256
 
-# How much compression should be done (from 0-9). The default is -1, which uses the
-# default level of 6.
+# Compression level from 0 to 9. Use -1 for the default Java zlib level.
 compression-level = -1
 
-# How fast (in milliseconds) are clients allowed to connect after the last connection? By
-# default, this is three seconds. Disable this by setting this to 0.
+# Minimum delay in milliseconds between connection attempts from the same IP.
+# Use 0 to disable this limiter.
 login-ratelimit = 3000
 
-# Specify a custom timeout for connection timeouts here. The default is five seconds.
+# Backend connection timeout in milliseconds.
 connection-timeout = 5000
 
-# Specify a read timeout for connections here. The default is 30 seconds.
+# Read timeout for client and backend connections in milliseconds.
 read-timeout = 30000
 
-# Enables compatibility with HAProxy's PROXY protocol. If you don't know what this is for, then
-# don't enable it.
+# Accept HAProxy PROXY protocol headers from the load balancer.
+# Enable only when all incoming traffic is sent by a trusted proxy.
 haproxy-protocol = false
 
-# Enables TCP fast open support on the proxy. Requires the proxy to run on Linux.
+# Enable TCP Fast Open. Requires Linux support and OS-level configuration.
 tcp-fast-open = false
 
-# Enables BungeeCord plugin messaging channel support on Link.
+# Enable BungeeCord plugin messaging channel compatibility.
 bungee-plugin-message-channel = true
 
-# Shows ping requests to the proxy from clients.
+# Log server list ping requests. Disabled by default to avoid scanner noise.
+# When enabled, these messages are emitted at DEBUG level.
 show-ping-requests = false
 
-# By default, Link will attempt to gracefully handle situations where the user unexpectedly
-# loses connection to the server without an explicit disconnect message by attempting to fall the
-# user back, except in the case of read timeouts. BungeeCord will disconnect the user instead. You
-# can disable this setting to use the BungeeCord behavior.
+# Try to move players to another backend after unexpected backend disconnects.
 failover-on-unexpected-server-disconnect = true
 
-# Declares the proxy commands to 1.13+ clients.
+# Advertise proxy commands to 1.13+ clients.
 announce-proxy-commands = true
 
-# Enables the logging of commands
+# Log command execution through the proxy.
 log-command-executions = false
 
-# Enables logging of player connections when connecting to the proxy, switching servers
-# and disconnecting from the proxy.
+# Log player connects, server switches, and disconnects.
 log-player-connections = true
 
-# Allows players transferred from other hosts via the
-# Transfer packet (Minecraft 1.20.5) to be received.
+# Accept players transferred from other hosts via the Minecraft 1.20.5 transfer packet.
 accepts-transfers = false
 
-# Enables support for SO_REUSEPORT. This may help the proxy scale better on multicore systems
-# with a lot of incoming connections, and provide better CPU utilization than the existing
-# strategy of having a single thread accepting connections and distributing them to worker
-# threads. Disabled by default. Requires Linux or macOS.
+# Enable SO_REUSEPORT for better accept scaling on supported Linux/macOS systems.
 enable-reuse-port = false
 
-# How fast (in milliseconds) are clients allowed to send commands after the last command
-# By default this is 50ms (20 commands per second)
+# Minimum delay in milliseconds between proxy command submissions.
 command-rate-limit = 50
 
-# Should we forward commands to the backend upon being rate limited?
-# This will forward the command to the server instead of processing it on the proxy.
-# Since most server implementations have a rate limit, this will prevent the player
-# from being able to send excessive commands to the server.
+# Forward commands to the backend when the proxy command rate limit is hit.
 forward-commands-if-rate-limited = true
 
-# How many commands are allowed to be sent after the rate limit is hit before the player is kicked?
-# Setting this to 0 or lower will disable this feature.
+# Number of rate-limited commands allowed before kicking the player.
+# Use 0 or lower to disable kicking for this limiter.
 kick-after-rate-limited-commands = 0
 
-# How fast (in milliseconds) are clients allowed to send tab completions after the last tab completion
+# Minimum delay in milliseconds between tab-completion requests.
 tab-complete-rate-limit = 10
 
-# How many tab completions are allowed to be sent after the rate limit is hit before the player is kicked?
-# Setting this to 0 or lower will disable this feature.
+# Number of rate-limited tab completions allowed before kicking the player.
+# Use 0 or lower to disable kicking for this limiter.
 kick-after-rate-limited-tab-completes = 0
 
+[packet-limiter]
+# Moving time window in seconds used to calculate average packet and byte rates.
+interval = 7
+
+# Maximum average packets per second from one client. Use -1 to disable this check.
+packets-per-second = -1
+
+# Maximum average compressed on-wire bytes per second. Use -1 to disable this check.
+bytes-per-second = -1
+
+# Maximum average decompressed bytes per second after packet inflation.
+# This protects against compression bomb traffic. Use -1 to disable this check.
+decompressed-bytes-per-second = 5242880
+
 [query]
-# Whether to enable responding to GameSpy 4 query responses or not.
+# Enable GameSpy 4 query responses.
 enabled = false
 
-# If query is enabled, on what port should the query protocol listen on?
+# Query listener port. Used only when query support is enabled.
 port = 25565
 
-# This is the map name that is reported to the query services.
+# Map name reported in query responses.
 map = "Link"
 
-# Whether plugins should be shown in query response by default or not
+# Include plugin information in query responses.
 show-plugins = false
