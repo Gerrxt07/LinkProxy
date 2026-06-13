@@ -174,6 +174,7 @@ dependencies {
     implementation(libs.adventure.facet)
     implementation(libs.completablefutures)
     implementation(libs.nightconfig)
+    implementation(libs.redisson)
     implementation(libs.lmbda)
     implementation(libs.asm)
     implementation(libs.bundles.flare)

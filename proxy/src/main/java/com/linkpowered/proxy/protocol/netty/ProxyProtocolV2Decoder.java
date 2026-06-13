@@ -27,11 +27,15 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Strict, single-use HAProxy PROXY protocol v2 decoder.
  */
 public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
+
+  private static final Consumer<ChannelHandlerContext> NOOP_ACCEPTED_CALLBACK = ctx -> {
+  };
 
   private static final byte[] SIGNATURE = {
       0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A
@@ -45,6 +49,16 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
   private static final int TRANSPORT_STREAM = 0x01;
   private static final int IPV4_ADDRESS_LENGTH = 12;
   private static final int IPV6_ADDRESS_LENGTH = 36;
+
+  private final Consumer<ChannelHandlerContext> acceptedCallback;
+
+  public ProxyProtocolV2Decoder() {
+    this(NOOP_ACCEPTED_CALLBACK);
+  }
+
+  public ProxyProtocolV2Decoder(Consumer<ChannelHandlerContext> acceptedCallback) {
+    this.acceptedCallback = acceptedCallback;
+  }
 
   @Override
   protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out)
@@ -76,6 +90,7 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
     in.skipBytes(HEADER_LENGTH);
     if (command == COMMAND_LOCAL) {
       in.skipBytes(addressLength);
+      proxyHeaderAccepted(ctx);
       removeSelfAndForwardRemainder(ctx, in, out);
       return;
     }
@@ -125,6 +140,7 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
       ctx.close();
       return;
     }
+    proxyHeaderAccepted(ctx);
     out.add(new ProxiedAddress(proxiedAddress));
     removeSelfAndForwardRemainder(ctx, in, out);
   }
@@ -138,6 +154,10 @@ public class ProxyProtocolV2Decoder extends ByteToMessageDecoder {
 
   protected boolean shouldDropSource(InetSocketAddress sourceAddress) {
     return false;
+  }
+
+  protected void proxyHeaderAccepted(ChannelHandlerContext ctx) {
+    acceptedCallback.accept(ctx);
   }
 
   private static SegmentView segmentView(ByteBuf in, int length) {

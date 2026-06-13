@@ -91,8 +91,20 @@ public class HandshakeSessionHandler implements MinecraftSessionHandler {
       LOGGER.error("{} provided invalid protocol {}", this, handshake.getNextStatus());
       connection.close(true);
     } else {
-      final InitialInboundConnection ic = new InitialInboundConnection(connection,
-              cleanVhost(handshake.getServerAddress()), handshake);
+      final String virtualHost = cleanVhost(handshake.getServerAddress());
+      final InitialInboundConnection ic = new InitialInboundConnection(connection, virtualHost, handshake);
+      if (!server.getConfiguration().isHostAllowed(virtualHost)) {
+        LOGGER.info("Rejected handshake from {} with disallowed host {}",
+            connection.getRemoteAddress(), virtualHost);
+        if (nextState == StateRegistry.STATUS) {
+          connection.close(true);
+        } else {
+          connection.setState(StateRegistry.LOGIN);
+          ic.disconnectQuietly(Component.text("Please connect using mc.phantomcommunity.de",
+              NamedTextColor.RED));
+        }
+        return true;
+      }
       if (handshake.getIntent() == HandshakeIntent.TRANSFER
               && !server.getConfiguration().isAcceptTransfers()) {
         ic.disconnect(Component.translatable("multiplayer.disconnect.transfers_disabled"));
@@ -134,7 +146,8 @@ public class HandshakeSessionHandler implements MinecraftSessionHandler {
     }
 
     final InetAddress address = ((InetSocketAddress) connection.getRemoteAddress()).getAddress();
-    if (!server.getIpAttemptLimiter().attempt(address)) {
+    if (!server.getDragonflyProtection().attemptLogin(address)
+        || !server.getIpAttemptLimiter().attempt(address)) {
       // Bump connection into correct protocol state so that we can send the disconnect packet.
       connection.setState(StateRegistry.LOGIN);
       ic.disconnectQuietly(Component.translatable("link.error.logging-in-too-fast"));

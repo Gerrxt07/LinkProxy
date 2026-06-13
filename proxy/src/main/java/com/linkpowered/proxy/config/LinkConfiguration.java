@@ -75,12 +75,16 @@ public class LinkConfiguration implements ProxyConfig {
   private byte[] forwardingSecret = generateRandomString(12).getBytes(StandardCharsets.UTF_8);
   @Expose
   private boolean onlineModeKickExistingPlayers = false;
+  @Expose
+  private final List<String> allowedHosts;
   private final Servers servers;
   private final ForcedHosts forcedHosts;
   @Expose
   private final Advanced advanced;
   @Expose
   private final Query query;
+  @Expose
+  private final Dragonfly dragonfly;
   @Expose
   private boolean enablePlayerAddressLogging = true;
   private net.kyori.adventure.text.@MonotonicNonNull Component motdAsComponent;
@@ -89,17 +93,20 @@ public class LinkConfiguration implements ProxyConfig {
   private PacketLimiterConfig packetLimiterConfig = PacketLimiterConfig.DEFAULT;
 
   private LinkConfiguration(Servers servers, ForcedHosts forcedHosts, Advanced advanced,
-      Query query) {
+      Query query, Dragonfly dragonfly) {
+    this.allowedHosts = ImmutableList.of();
     this.servers = servers;
     this.forcedHosts = forcedHosts;
     this.advanced = advanced;
     this.query = query;
+    this.dragonfly = dragonfly;
   }
 
   private LinkConfiguration(String bind, String networkTransport, String proxyName, String motd,
       int showMaxPlayers, boolean preventClientProxyConnections, byte[] forwardingSecret,
-      boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging, Servers servers,
-      ForcedHosts forcedHosts, Advanced advanced, Query query,
+      boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging,
+      List<String> allowedHosts, Servers servers, ForcedHosts forcedHosts, Advanced advanced,
+      Query query, Dragonfly dragonfly,
       PacketLimiterConfig packetLimiterConfig) {
     this.bind = bind;
     this.networkTransport = networkTransport;
@@ -110,10 +117,12 @@ public class LinkConfiguration implements ProxyConfig {
     this.forwardingSecret = forwardingSecret;
     this.onlineModeKickExistingPlayers = onlineModeKickExistingPlayers;
     this.enablePlayerAddressLogging = enablePlayerAddressLogging;
+    this.allowedHosts = allowedHosts;
     this.servers = servers;
     this.forcedHosts = forcedHosts;
     this.advanced = advanced;
     this.query = query;
+    this.dragonfly = dragonfly;
     this.packetLimiterConfig = packetLimiterConfig;
   }
 
@@ -155,6 +164,13 @@ public class LinkConfiguration implements ProxyConfig {
     if (proxyName.isBlank()) {
       logger.error("'proxy-name' option is empty.");
       valid = false;
+    }
+
+    for (String host : allowedHosts) {
+      if (host.isBlank()) {
+        logger.error("'allowed-hosts' contains an empty host.");
+        valid = false;
+      }
     }
 
     if (servers.getServers().isEmpty()) {
@@ -225,6 +241,11 @@ public class LinkConfiguration implements ProxyConfig {
       valid = false;
     }
 
+    if (dragonfly.enabled && dragonfly.address.isBlank()) {
+      logger.error("'dragonfly.address' option is empty while Dragonfly is enabled.");
+      valid = false;
+    }
+
     loadFavicon();
 
     return valid;
@@ -263,6 +284,18 @@ public class LinkConfiguration implements ProxyConfig {
   @Override
   public boolean shouldQueryShowPlugins() {
     return query.shouldQueryShowPlugins();
+  }
+
+  public Dragonfly getDragonfly() {
+    return dragonfly;
+  }
+
+  public List<String> getAllowedHosts() {
+    return allowedHosts;
+  }
+
+  public boolean isHostAllowed(String host) {
+    return allowedHosts.isEmpty() || allowedHosts.contains(normalizeHost(host));
   }
 
   @Override
@@ -548,12 +581,14 @@ public class LinkConfiguration implements ProxyConfig {
       }
       final byte[] forwardingSecret = forwardingSecretString.getBytes(StandardCharsets.UTF_8);
       final String motd = config.getOrElse("motd", "<#09add3>A Link Server");
+      final List<String> allowedHosts = normalizeAllowedHosts(config.getOrElse("allowed-hosts", List.of()));
 
       // Read the rest of the config
       final CommentedConfig serversConfig = config.get("servers");
       final CommentedConfig forcedHostsConfig = config.get("forced-hosts");
       final CommentedConfig advancedConfig = config.get("advanced");
       final CommentedConfig queryConfig = config.get("query");
+      final CommentedConfig dragonflyConfig = config.get("dragonfly");
       final String bind = config.getOrElse("bind", "0.0.0.0:25565");
       final String networkTransport = config.getOrElse("network-transport", "auto");
       final String proxyName = config.getOrElse("proxy-name", "Link");
@@ -579,13 +614,36 @@ public class LinkConfiguration implements ProxyConfig {
               forwardingSecret,
               kickExisting,
               enablePlayerAddressLogging,
+              allowedHosts,
               new Servers(serversConfig),
               new ForcedHosts(forcedHostsConfig),
               new Advanced(advancedConfig),
               new Query(queryConfig),
+              new Dragonfly(dragonflyConfig),
               packetLimiterConfig
       );
     }
+  }
+
+
+  private static List<String> normalizeAllowedHosts(List<String> hosts) {
+    ImmutableList.Builder<String> normalized = ImmutableList.builder();
+    for (String host : hosts) {
+      normalized.add(normalizeHost(host));
+    }
+    return normalized.build();
+  }
+
+  private static String normalizeHost(String host) {
+    String normalized = host.toLowerCase(Locale.ROOT);
+    if (normalized.endsWith(".")) {
+      normalized = normalized.substring(0, normalized.length() - 1);
+    }
+    int colon = normalized.lastIndexOf(':');
+    if (colon > 0 && normalized.indexOf(':') == colon) {
+      normalized = normalized.substring(0, colon);
+    }
+    return normalized;
   }
 
   /**
@@ -966,6 +1024,92 @@ public class LinkConfiguration implements ProxyConfig {
           + ", queryMap='" + queryMap + '\''
           + ", showPlugins=" + showPlugins
           + '}';
+    }
+  }
+
+
+  /**
+   * Dragonfly/Redis configuration for multi-proxy state and early protection.
+   */
+  public static class Dragonfly {
+
+    @Expose
+    private boolean enabled = false;
+    @Expose
+    private String address = "redis://127.0.0.1:6379";
+    @Expose
+    private String password = "";
+    @Expose
+    private int database = 0;
+    @Expose
+    private String keyPrefix = "link";
+    @Expose
+    private boolean syncPlayers = true;
+    @Expose
+    private boolean earlyProtection = true;
+    @Expose
+    private String blockedIpSet = "blocked-ips";
+    @Expose
+    private String vpnIpSet = "vpn-ips";
+    @Expose
+    private int sharedLoginRatelimit = 3000;
+
+    private Dragonfly() {
+    }
+
+    private Dragonfly(CommentedConfig config) {
+      if (config != null) {
+        this.enabled = config.getOrElse("enabled", false);
+        this.address = config.getOrElse("address", "redis://127.0.0.1:6379");
+        this.password = config.getOrElse("password", "");
+        this.database = config.getIntOrElse("database", 0);
+        this.keyPrefix = config.getOrElse("key-prefix", "link");
+        this.syncPlayers = config.getOrElse("sync-players", true);
+        this.earlyProtection = config.getOrElse("early-protection", true);
+        this.blockedIpSet = config.getOrElse("blocked-ip-set", "blocked-ips");
+        this.vpnIpSet = config.getOrElse("vpn-ip-set", "vpn-ips");
+        this.sharedLoginRatelimit = config.getIntOrElse("shared-login-ratelimit", 3000);
+      }
+    }
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public String getAddress() {
+      return address;
+    }
+
+    public String getPassword() {
+      return password;
+    }
+
+    public int getDatabase() {
+      return database;
+    }
+
+    public String getKeyPrefix() {
+      return keyPrefix;
+    }
+
+    public boolean shouldSyncPlayers() {
+      return syncPlayers;
+    }
+
+    public boolean isEarlyProtection() {
+      return earlyProtection;
+    }
+
+    public String getBlockedIpSet() {
+      return blockedIpSet;
+    }
+
+    public String getVpnIpSet() {
+      return vpnIpSet;
+    }
+
+    public int getSharedLoginRatelimit() {
+      return sharedLoginRatelimit;
     }
   }
 
