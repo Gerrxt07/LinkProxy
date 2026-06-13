@@ -82,6 +82,8 @@ public class LinkConfiguration implements ProxyConfig {
   @Expose
   private final Query query;
   @Expose
+  private final Dragonfly dragonfly;
+  @Expose
   private boolean enablePlayerAddressLogging = true;
   private net.kyori.adventure.text.@MonotonicNonNull Component motdAsComponent;
   private @Nullable Favicon favicon;
@@ -89,17 +91,18 @@ public class LinkConfiguration implements ProxyConfig {
   private PacketLimiterConfig packetLimiterConfig = PacketLimiterConfig.DEFAULT;
 
   private LinkConfiguration(Servers servers, ForcedHosts forcedHosts, Advanced advanced,
-      Query query) {
+      Query query, Dragonfly dragonfly) {
     this.servers = servers;
     this.forcedHosts = forcedHosts;
     this.advanced = advanced;
     this.query = query;
+    this.dragonfly = dragonfly;
   }
 
   private LinkConfiguration(String bind, String networkTransport, String proxyName, String motd,
       int showMaxPlayers, boolean preventClientProxyConnections, byte[] forwardingSecret,
       boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging, Servers servers,
-      ForcedHosts forcedHosts, Advanced advanced, Query query,
+      ForcedHosts forcedHosts, Advanced advanced, Query query, Dragonfly dragonfly,
       PacketLimiterConfig packetLimiterConfig) {
     this.bind = bind;
     this.networkTransport = networkTransport;
@@ -114,6 +117,7 @@ public class LinkConfiguration implements ProxyConfig {
     this.forcedHosts = forcedHosts;
     this.advanced = advanced;
     this.query = query;
+    this.dragonfly = dragonfly;
     this.packetLimiterConfig = packetLimiterConfig;
   }
 
@@ -225,6 +229,11 @@ public class LinkConfiguration implements ProxyConfig {
       valid = false;
     }
 
+    if (dragonfly.enabled && dragonfly.address.isBlank()) {
+      logger.error("'dragonfly.address' option is empty while Dragonfly is enabled.");
+      valid = false;
+    }
+
     loadFavicon();
 
     return valid;
@@ -263,6 +272,10 @@ public class LinkConfiguration implements ProxyConfig {
   @Override
   public boolean shouldQueryShowPlugins() {
     return query.shouldQueryShowPlugins();
+  }
+
+  public Dragonfly getDragonfly() {
+    return dragonfly;
   }
 
   @Override
@@ -554,6 +567,7 @@ public class LinkConfiguration implements ProxyConfig {
       final CommentedConfig forcedHostsConfig = config.get("forced-hosts");
       final CommentedConfig advancedConfig = config.get("advanced");
       final CommentedConfig queryConfig = config.get("query");
+      final CommentedConfig dragonflyConfig = config.get("dragonfly");
       final String bind = config.getOrElse("bind", "0.0.0.0:25565");
       final String networkTransport = config.getOrElse("network-transport", "auto");
       final String proxyName = config.getOrElse("proxy-name", "Link");
@@ -583,6 +597,7 @@ public class LinkConfiguration implements ProxyConfig {
               new ForcedHosts(forcedHostsConfig),
               new Advanced(advancedConfig),
               new Query(queryConfig),
+              new Dragonfly(dragonflyConfig),
               packetLimiterConfig
       );
     }
@@ -966,6 +981,92 @@ public class LinkConfiguration implements ProxyConfig {
           + ", queryMap='" + queryMap + '\''
           + ", showPlugins=" + showPlugins
           + '}';
+    }
+  }
+
+
+  /**
+   * Dragonfly/Redis configuration for multi-proxy state and early protection.
+   */
+  public static class Dragonfly {
+
+    @Expose
+    private boolean enabled = false;
+    @Expose
+    private String address = "redis://127.0.0.1:6379";
+    @Expose
+    private String password = "";
+    @Expose
+    private int database = 0;
+    @Expose
+    private String keyPrefix = "link";
+    @Expose
+    private boolean syncPlayers = true;
+    @Expose
+    private boolean earlyProtection = true;
+    @Expose
+    private String blockedIpSet = "blocked-ips";
+    @Expose
+    private String vpnIpSet = "vpn-ips";
+    @Expose
+    private int sharedLoginRatelimit = 3000;
+
+    private Dragonfly() {
+    }
+
+    private Dragonfly(CommentedConfig config) {
+      if (config != null) {
+        this.enabled = config.getOrElse("enabled", false);
+        this.address = config.getOrElse("address", "redis://127.0.0.1:6379");
+        this.password = config.getOrElse("password", "");
+        this.database = config.getIntOrElse("database", 0);
+        this.keyPrefix = config.getOrElse("key-prefix", "link");
+        this.syncPlayers = config.getOrElse("sync-players", true);
+        this.earlyProtection = config.getOrElse("early-protection", true);
+        this.blockedIpSet = config.getOrElse("blocked-ip-set", "blocked-ips");
+        this.vpnIpSet = config.getOrElse("vpn-ip-set", "vpn-ips");
+        this.sharedLoginRatelimit = config.getIntOrElse("shared-login-ratelimit", 3000);
+      }
+    }
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public String getAddress() {
+      return address;
+    }
+
+    public String getPassword() {
+      return password;
+    }
+
+    public int getDatabase() {
+      return database;
+    }
+
+    public String getKeyPrefix() {
+      return keyPrefix;
+    }
+
+    public boolean shouldSyncPlayers() {
+      return syncPlayers;
+    }
+
+    public boolean isEarlyProtection() {
+      return earlyProtection;
+    }
+
+    public String getBlockedIpSet() {
+      return blockedIpSet;
+    }
+
+    public String getVpnIpSet() {
+      return vpnIpSet;
+    }
+
+    public int getSharedLoginRatelimit() {
+      return sharedLoginRatelimit;
     }
   }
 

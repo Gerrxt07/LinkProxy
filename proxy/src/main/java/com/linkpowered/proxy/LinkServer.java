@@ -52,6 +52,7 @@ import com.linkpowered.proxy.connection.player.resourcepack.LinkResourcePackInfo
 import com.linkpowered.proxy.connection.util.ServerListPingHandler;
 import com.linkpowered.proxy.console.LinkConsole;
 import com.linkpowered.proxy.crypto.EncryptionUtils;
+import com.linkpowered.proxy.dragonfly.DragonflyProtectionService;
 import com.linkpowered.proxy.event.LinkEventManager;
 import com.linkpowered.proxy.network.ConnectionManager;
 import com.linkpowered.proxy.plugin.LinkPluginManager;
@@ -159,6 +160,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
   private @MonotonicNonNull ConnectionManager cm;
   private final ProxyOptions options;
   private @MonotonicNonNull LinkConfiguration configuration;
+  private @MonotonicNonNull DragonflyProtectionService dragonflyProtection;
   private @MonotonicNonNull KeyPair serverKeyPair;
   private final ServerMap servers;
   private final LinkCommandManager commandManager;
@@ -288,6 +290,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     new SendCommand(this).register();
 
     this.doStartupConfigLoad();
+    dragonflyProtection = new DragonflyProtectionService(configuration.getDragonfly(),
+        configuration.getProxyName());
+    dragonflyProtection.start(uuid -> getPlayer(uuid).ifPresent(player ->
+        player.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login"))));
     cm = new ConnectionManager(this, configuration.getNetworkTransport());
     cm.logChannelInformation();
 
@@ -597,6 +603,12 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
 
     commandManager.setAnnounceProxyCommands(newConfiguration.isAnnounceProxyCommands());
     ipAttemptLimiter = Ratelimiters.createWithMilliseconds(newConfiguration.getLoginRatelimit());
+    DragonflyProtectionService newDragonflyProtection = new DragonflyProtectionService(
+        newConfiguration.getDragonfly(), newConfiguration.getProxyName());
+    newDragonflyProtection.start(uuid -> getPlayer(uuid).ifPresent(player ->
+        player.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login"))));
+    dragonflyProtection.close();
+    dragonflyProtection = newDragonflyProtection;
     this.configuration = newConfiguration;
     eventManager.fireAndForget(new ProxyReloadEvent());
     return true;
@@ -623,6 +635,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
       // Shutdown the connection manager, this should be
       // done first to refuse new connections
       cm.shutdown();
+      dragonflyProtection.close();
 
       try {
         eventManager.fire(new ProxyPreShutdownEvent())
@@ -724,6 +737,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     return ipAttemptLimiter;
   }
 
+  public @MonotonicNonNull DragonflyProtectionService getDragonflyProtection() {
+    return dragonflyProtection;
+  }
+
   public @MonotonicNonNull Ratelimiter<UUID> getCommandRateLimiter() {
     return commandRateLimiter;
   }
@@ -757,14 +774,20 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     String lowerName = connection.getUsername().toLowerCase(Locale.US);
 
     if (!this.configuration.isOnlineModeKickExistingPlayers()) {
+      if (!dragonflyProtection.registerPlayer(connection, false)) {
+        return false;
+      }
       if (connectionsByName.putIfAbsent(lowerName, connection) != null) {
+        dragonflyProtection.unregisterPlayer(connection);
         return false;
       }
       if (connectionsByUuid.putIfAbsent(connection.getUniqueId(), connection) != null) {
         connectionsByName.remove(lowerName, connection);
+        dragonflyProtection.unregisterPlayer(connection);
         return false;
       }
     } else {
+      dragonflyProtection.registerPlayer(connection, true);
       ConnectedPlayer existing = connectionsByUuid.get(connection.getUniqueId());
       if (existing != null) {
         existing.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login"));
@@ -785,6 +808,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
   public void unregisterConnection(ConnectedPlayer connection) {
     connectionsByName.remove(connection.getUsername().toLowerCase(Locale.US), connection);
     connectionsByUuid.remove(connection.getUniqueId(), connection);
+    dragonflyProtection.unregisterPlayer(connection);
     connection.disconnected();
   }
 

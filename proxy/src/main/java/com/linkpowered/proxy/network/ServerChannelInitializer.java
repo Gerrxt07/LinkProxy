@@ -31,6 +31,7 @@ import com.linkpowered.proxy.LinkServer;
 import com.linkpowered.proxy.config.LinkConfiguration;
 import com.linkpowered.proxy.connection.MinecraftConnection;
 import com.linkpowered.proxy.connection.client.HandshakeSessionHandler;
+import com.linkpowered.proxy.dragonfly.DragonflyProxyProtocolV2Decoder;
 import com.linkpowered.proxy.network.limiter.SimpleBytesPerSecondLimiter;
 import com.linkpowered.proxy.protocol.ProtocolUtils;
 import com.linkpowered.proxy.protocol.StateRegistry;
@@ -43,6 +44,8 @@ import com.linkpowered.proxy.protocol.netty.MinecraftVarintFrameDecoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftVarintLengthEncoder;
 import com.linkpowered.proxy.protocol.netty.ProxyProtocolV2Decoder;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +64,27 @@ public class ServerChannelInitializer extends ChannelInitializer<Channel> {
 
   @Override
   protected void initChannel(final Channel ch) {
+    if (this.server.getConfiguration().isProxyProtocol()) {
+      if (this.server.getDragonflyProtection().isEarlyProtectionEnabled()) {
+        ch.pipeline().addLast(HAPROXY_DECODER,
+            new DragonflyProxyProtocolV2Decoder(this.server.getDragonflyProtection()));
+      } else {
+        ch.pipeline().addLast(HAPROXY_DECODER, new ProxyProtocolV2Decoder());
+      }
+      ch.pipeline().addLast("minecraft-pipeline-bootstrap", new ChannelInboundHandlerAdapter() {
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+          ctx.pipeline().remove(this);
+          installMinecraftPipeline(ch);
+          ctx.fireChannelRead(msg);
+        }
+      });
+    } else {
+      installMinecraftPipeline(ch);
+    }
+  }
+
+  private void installMinecraftPipeline(final Channel ch) {
     ch.pipeline()
         .addLast(LEGACY_PING_DECODER, new LegacyPingDecoder())
         .addLast(FRAME_DECODER, new MinecraftVarintFrameDecoder(ProtocolUtils.Direction.SERVERBOUND))
@@ -88,9 +112,6 @@ public class ServerChannelInitializer extends ChannelInitializer<Channel> {
       ch.pipeline().get(MinecraftVarintFrameDecoder.class).setPacketLimiter(
           new SimpleBytesPerSecondLimiter(configuredPacketsPerSecond, configuredBytes, configuredInterval)
       );
-    }
-    if (this.server.getConfiguration().isProxyProtocol()) {
-      ch.pipeline().addFirst(HAPROXY_DECODER, new ProxyProtocolV2Decoder());
     }
   }
 }

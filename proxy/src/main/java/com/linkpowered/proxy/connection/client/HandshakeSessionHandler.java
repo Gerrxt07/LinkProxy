@@ -134,7 +134,8 @@ public class HandshakeSessionHandler implements MinecraftSessionHandler {
     }
 
     final InetAddress address = ((InetSocketAddress) connection.getRemoteAddress()).getAddress();
-    if (!server.getIpAttemptLimiter().attempt(address)) {
+    if (!server.getDragonflyProtection().attemptLogin(address)
+        || !server.getIpAttemptLimiter().attempt(address)) {
       // Bump connection into correct protocol state so that we can send the disconnect packet.
       connection.setState(StateRegistry.LOGIN);
       ic.disconnectQuietly(Component.translatable("link.error.logging-in-too-fast"));

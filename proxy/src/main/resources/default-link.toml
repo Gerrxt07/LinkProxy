@@ -132,6 +132,23 @@ bytes-per-second = -1
 # This protects against compression bomb traffic. Use -1 to disable this check.
 decompressed-bytes-per-second = 5242880
 
+[dragonfly]
+# Enable Dragonfly/Redis-backed multi-proxy state and protection.
+enabled = false
+# Passwordless local Dragonfly defaults to the normal Redis port.
+address = "redis://127.0.0.1:6379"
+password = ""
+database = 0
+key-prefix = "link"
+# Share online player ownership across proxy instances.
+sync-players = true
+# Drop HAProxy v2 connections early when their source IP is listed below.
+early-protection = true
+blocked-ip-set = "blocked-ips"
+vpn-ip-set = "vpn-ips"
+# Cross-proxy login attempt limiter in milliseconds. Use 0 to disable.
+shared-login-ratelimit = 3000
+
 [query]
 # Enable GameSpy 4 query responses.
 enabled = false

@@ -1,0 +1,86 @@
+/*
+ * Copyright (C) 2026 Link Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.linkpowered.proxy.config;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.electronwill.nightconfig.core.CommentedConfig;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import org.junit.jupiter.api.Test;
+
+class LinkConfigurationTest {
+
+  @Test
+  void dragonflyDefaultsToLocalPasswordlessServer() {
+    LinkConfiguration.Dragonfly dragonfly = dragonfly(null);
+
+    assertFalse(dragonfly.isEnabled());
+    assertEquals("redis://127.0.0.1:6379", dragonfly.getAddress());
+    assertEquals("", dragonfly.getPassword());
+    assertEquals(0, dragonfly.getDatabase());
+    assertEquals("link", dragonfly.getKeyPrefix());
+    assertTrue(dragonfly.shouldSyncPlayers());
+    assertTrue(dragonfly.isEarlyProtection());
+    assertEquals("blocked-ips", dragonfly.getBlockedIpSet());
+    assertEquals("vpn-ips", dragonfly.getVpnIpSet());
+    assertEquals(3000, dragonfly.getSharedLoginRatelimit());
+  }
+
+  @Test
+  void readsCustomDragonflyConfiguration() {
+    CommentedConfig config = CommentedConfig.inMemory();
+    config.set("enabled", true);
+    config.set("address", "redis://10.0.0.4:6379");
+    config.set("password", "secret");
+    config.set("database", 3);
+    config.set("key-prefix", "network");
+    config.set("sync-players", false);
+    config.set("early-protection", false);
+    config.set("blocked-ip-set", "blocked");
+    config.set("vpn-ip-set", "vpn");
+    config.set("shared-login-ratelimit", 1250);
+
+    LinkConfiguration.Dragonfly dragonfly = dragonfly(config);
+
+    assertTrue(dragonfly.isEnabled());
+    assertEquals("redis://10.0.0.4:6379", dragonfly.getAddress());
+    assertEquals("secret", dragonfly.getPassword());
+    assertEquals(3, dragonfly.getDatabase());
+    assertEquals("network", dragonfly.getKeyPrefix());
+    assertFalse(dragonfly.shouldSyncPlayers());
+    assertFalse(dragonfly.isEarlyProtection());
+    assertEquals("blocked", dragonfly.getBlockedIpSet());
+    assertEquals("vpn", dragonfly.getVpnIpSet());
+    assertEquals(1250, dragonfly.getSharedLoginRatelimit());
+  }
+
+  private static LinkConfiguration.Dragonfly dragonfly(CommentedConfig config) {
+    try {
+      Constructor<LinkConfiguration.Dragonfly> constructor =
+          LinkConfiguration.Dragonfly.class.getDeclaredConstructor(CommentedConfig.class);
+      constructor.setAccessible(true);
+      return constructor.newInstance(config);
+    } catch (IllegalAccessException | InstantiationException | InvocationTargetException
+        | NoSuchMethodException ex) {
+      throw new AssertionError(ex);
+    }
+  }
+}
