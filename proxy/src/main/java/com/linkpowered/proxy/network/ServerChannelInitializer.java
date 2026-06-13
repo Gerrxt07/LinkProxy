@@ -44,8 +44,6 @@ import com.linkpowered.proxy.protocol.netty.MinecraftVarintFrameDecoder;
 import com.linkpowered.proxy.protocol.netty.MinecraftVarintLengthEncoder;
 import com.linkpowered.proxy.protocol.netty.ProxyProtocolV2Decoder;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.TimeUnit;
@@ -67,18 +65,12 @@ public class ServerChannelInitializer extends ChannelInitializer<Channel> {
     if (this.server.getConfiguration().isProxyProtocol()) {
       if (this.server.getDragonflyProtection().isEarlyProtectionEnabled()) {
         ch.pipeline().addLast(HAPROXY_DECODER,
-            new DragonflyProxyProtocolV2Decoder(this.server.getDragonflyProtection()));
+            new DragonflyProxyProtocolV2Decoder(this.server.getDragonflyProtection(),
+                ctx -> installMinecraftPipeline(ch)));
       } else {
-        ch.pipeline().addLast(HAPROXY_DECODER, new ProxyProtocolV2Decoder());
+        ch.pipeline().addLast(HAPROXY_DECODER,
+            new ProxyProtocolV2Decoder(ctx -> installMinecraftPipeline(ch)));
       }
-      ch.pipeline().addLast("minecraft-pipeline-bootstrap", new ChannelInboundHandlerAdapter() {
-        @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-          ctx.pipeline().remove(this);
-          installMinecraftPipeline(ch);
-          ctx.fireChannelRead(msg);
-        }
-      });
     } else {
       installMinecraftPipeline(ch);
     }

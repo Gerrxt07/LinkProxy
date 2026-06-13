@@ -18,7 +18,9 @@
 package com.linkpowered.proxy.dragonfly;
 
 import com.linkpowered.proxy.protocol.netty.ProxyProtocolV2Decoder;
+import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
+import java.util.function.Consumer;
 
 /**
  * HAProxy v2 decoder with Dragonfly-backed source IP protection.
@@ -28,6 +30,13 @@ public final class DragonflyProxyProtocolV2Decoder extends ProxyProtocolV2Decode
   private final DragonflyProtectionService dragonfly;
 
   public DragonflyProxyProtocolV2Decoder(DragonflyProtectionService dragonfly) {
+    this(dragonfly, ctx -> {
+    });
+  }
+
+  public DragonflyProxyProtocolV2Decoder(DragonflyProtectionService dragonfly,
+      Consumer<ChannelHandlerContext> acceptedCallback) {
+    super(acceptedCallback);
     this.dragonfly = dragonfly;
   }
 

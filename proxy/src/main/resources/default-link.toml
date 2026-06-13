@@ -36,6 +36,10 @@ kick-existing-players = false
 # When disabled, player IP addresses are replaced with <ip address withheld> in logs.
 enable-player-address-logging = true
 
+# Optional hostname allow-list. Leave empty to accept any Minecraft handshake host.
+# Example: ["mc.example.com"] blocks direct-IP joins and unknown domains.
+allowed-hosts = []
+
 [servers]
 # Backend servers available to the proxy. Each key is the server name and each
 # value is the backend address the proxy should connect to.

@@ -22,9 +22,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.electronwill.nightconfig.core.CommentedConfig;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class LinkConfigurationTest {
 
@@ -70,6 +75,37 @@ class LinkConfigurationTest {
     assertEquals("blocked", dragonfly.getBlockedIpSet());
     assertEquals("vpn", dragonfly.getVpnIpSet());
     assertEquals(1250, dragonfly.getSharedLoginRatelimit());
+  }
+
+
+  @Test
+  void readsAndNormalizesAllowedHosts(@TempDir Path tempDir) throws IOException {
+    Path config = tempDir.resolve("link.toml");
+    Files.writeString(config, """
+        config-version = "2.8"
+        forwarding-secret-file = "%s"
+        allowed-hosts = ["MC.PhantomCommunity.DE.", "play.example.com:25565"]
+
+        [servers]
+        forge-community = "127.0.0.1:25590"
+        try = ["forge-community"]
+
+        [forced-hosts]
+
+        [advanced]
+
+        [query]
+        """.formatted(tempDir.resolve("forwarding.secret").toAbsolutePath()));
+
+    LinkConfiguration configuration = LinkConfiguration.read(config);
+
+    assertEquals(List.of("mc.phantomcommunity.de", "play.example.com"),
+        configuration.getAllowedHosts());
+    assertTrue(configuration.isHostAllowed("mc.phantomcommunity.de"));
+    assertTrue(configuration.isHostAllowed("MC.PHANTOMCOMMUNITY.DE."));
+    assertTrue(configuration.isHostAllowed("play.example.com:25565"));
+    assertFalse(configuration.isHostAllowed("2.59.133.137"));
+    assertFalse(configuration.isHostAllowed("unknown.example.com"));
   }
 
   private static LinkConfiguration.Dragonfly dragonfly(CommentedConfig config) {

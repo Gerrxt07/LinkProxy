@@ -75,6 +75,8 @@ public class LinkConfiguration implements ProxyConfig {
   private byte[] forwardingSecret = generateRandomString(12).getBytes(StandardCharsets.UTF_8);
   @Expose
   private boolean onlineModeKickExistingPlayers = false;
+  @Expose
+  private final List<String> allowedHosts;
   private final Servers servers;
   private final ForcedHosts forcedHosts;
   @Expose
@@ -92,6 +94,7 @@ public class LinkConfiguration implements ProxyConfig {
 
   private LinkConfiguration(Servers servers, ForcedHosts forcedHosts, Advanced advanced,
       Query query, Dragonfly dragonfly) {
+    this.allowedHosts = ImmutableList.of();
     this.servers = servers;
     this.forcedHosts = forcedHosts;
     this.advanced = advanced;
@@ -101,8 +104,9 @@ public class LinkConfiguration implements ProxyConfig {
 
   private LinkConfiguration(String bind, String networkTransport, String proxyName, String motd,
       int showMaxPlayers, boolean preventClientProxyConnections, byte[] forwardingSecret,
-      boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging, Servers servers,
-      ForcedHosts forcedHosts, Advanced advanced, Query query, Dragonfly dragonfly,
+      boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging,
+      List<String> allowedHosts, Servers servers, ForcedHosts forcedHosts, Advanced advanced,
+      Query query, Dragonfly dragonfly,
       PacketLimiterConfig packetLimiterConfig) {
     this.bind = bind;
     this.networkTransport = networkTransport;
@@ -113,6 +117,7 @@ public class LinkConfiguration implements ProxyConfig {
     this.forwardingSecret = forwardingSecret;
     this.onlineModeKickExistingPlayers = onlineModeKickExistingPlayers;
     this.enablePlayerAddressLogging = enablePlayerAddressLogging;
+    this.allowedHosts = allowedHosts;
     this.servers = servers;
     this.forcedHosts = forcedHosts;
     this.advanced = advanced;
@@ -159,6 +164,13 @@ public class LinkConfiguration implements ProxyConfig {
     if (proxyName.isBlank()) {
       logger.error("'proxy-name' option is empty.");
       valid = false;
+    }
+
+    for (String host : allowedHosts) {
+      if (host.isBlank()) {
+        logger.error("'allowed-hosts' contains an empty host.");
+        valid = false;
+      }
     }
 
     if (servers.getServers().isEmpty()) {
@@ -276,6 +288,14 @@ public class LinkConfiguration implements ProxyConfig {
 
   public Dragonfly getDragonfly() {
     return dragonfly;
+  }
+
+  public List<String> getAllowedHosts() {
+    return allowedHosts;
+  }
+
+  public boolean isHostAllowed(String host) {
+    return allowedHosts.isEmpty() || allowedHosts.contains(normalizeHost(host));
   }
 
   @Override
@@ -561,6 +581,7 @@ public class LinkConfiguration implements ProxyConfig {
       }
       final byte[] forwardingSecret = forwardingSecretString.getBytes(StandardCharsets.UTF_8);
       final String motd = config.getOrElse("motd", "<#09add3>A Link Server");
+      final List<String> allowedHosts = normalizeAllowedHosts(config.getOrElse("allowed-hosts", List.of()));
 
       // Read the rest of the config
       final CommentedConfig serversConfig = config.get("servers");
@@ -593,6 +614,7 @@ public class LinkConfiguration implements ProxyConfig {
               forwardingSecret,
               kickExisting,
               enablePlayerAddressLogging,
+              allowedHosts,
               new Servers(serversConfig),
               new ForcedHosts(forcedHostsConfig),
               new Advanced(advancedConfig),
@@ -601,6 +623,27 @@ public class LinkConfiguration implements ProxyConfig {
               packetLimiterConfig
       );
     }
+  }
+
+
+  private static List<String> normalizeAllowedHosts(List<String> hosts) {
+    ImmutableList.Builder<String> normalized = ImmutableList.builder();
+    for (String host : hosts) {
+      normalized.add(normalizeHost(host));
+    }
+    return normalized.build();
+  }
+
+  private static String normalizeHost(String host) {
+    String normalized = host.toLowerCase(Locale.ROOT);
+    if (normalized.endsWith(".")) {
+      normalized = normalized.substring(0, normalized.length() - 1);
+    }
+    int colon = normalized.lastIndexOf(':');
+    if (colon > 0 && normalized.indexOf(':') == colon) {
+      normalized = normalized.substring(0, colon);
+    }
+    return normalized;
   }
 
   /**
