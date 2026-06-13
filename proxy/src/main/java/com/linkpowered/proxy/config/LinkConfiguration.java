@@ -65,6 +65,8 @@ public class LinkConfiguration implements ProxyConfig {
   @Expose
   private String networkTransport = "auto";
   @Expose
+  private String proxyName = "Link";
+  @Expose
   private String motd = "<aqua>A Link Server";
   @Expose
   private int showMaxPlayers = 500;
@@ -94,13 +96,14 @@ public class LinkConfiguration implements ProxyConfig {
     this.query = query;
   }
 
-  private LinkConfiguration(String bind, String networkTransport, String motd, int showMaxPlayers,
-      boolean preventClientProxyConnections, byte[] forwardingSecret,
+  private LinkConfiguration(String bind, String networkTransport, String proxyName, String motd,
+      int showMaxPlayers, boolean preventClientProxyConnections, byte[] forwardingSecret,
       boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging, Servers servers,
       ForcedHosts forcedHosts, Advanced advanced, Query query,
       PacketLimiterConfig packetLimiterConfig) {
     this.bind = bind;
     this.networkTransport = networkTransport;
+    this.proxyName = proxyName;
     this.motd = motd;
     this.showMaxPlayers = showMaxPlayers;
     this.preventClientProxyConnections = preventClientProxyConnections;
@@ -146,6 +149,11 @@ public class LinkConfiguration implements ProxyConfig {
 
     if (forwardingSecret == null || forwardingSecret.length == 0) {
       logger.error("You don't have a forwarding secret set. This is required for security.");
+      valid = false;
+    }
+
+    if (proxyName.isBlank()) {
+      logger.error("'proxy-name' option is empty.");
       valid = false;
     }
 
@@ -315,6 +323,10 @@ public class LinkConfiguration implements ProxyConfig {
 
   public String getNetworkTransport() {
     return networkTransport;
+  }
+
+  public String getProxyName() {
+    return proxyName;
   }
 
   @Override
@@ -544,6 +556,7 @@ public class LinkConfiguration implements ProxyConfig {
       final CommentedConfig queryConfig = config.get("query");
       final String bind = config.getOrElse("bind", "0.0.0.0:25565");
       final String networkTransport = config.getOrElse("network-transport", "auto");
+      final String proxyName = config.getOrElse("proxy-name", "Link");
       final int maxPlayers = config.getIntOrElse("show-max-players", 500);
       final boolean preventClientProxyConnections = config.getOrElse(
               "prevent-client-proxy-connections", false);
@@ -559,6 +572,7 @@ public class LinkConfiguration implements ProxyConfig {
       return new LinkConfiguration(
               bind,
               networkTransport,
+              proxyName,
               motd,
               maxPlayers,
               preventClientProxyConnections,

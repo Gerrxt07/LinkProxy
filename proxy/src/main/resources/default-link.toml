@@ -10,6 +10,9 @@ bind = "0.0.0.0:25590"
 # Supported values: "auto", "epoll", "io_uring", "kqueue", "nio".
 network-transport = "auto"
 
+# Proxy identity shown in rewritten Minecraft brand messages.
+proxy-name = "Link"
+
 # Server list display
 # MOTD shown in the multiplayer server list. MiniMessage format is required.
 motd = "<#09add3>A Link Proxy Server"
