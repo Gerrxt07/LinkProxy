@@ -172,18 +172,21 @@ public final class PluginMessageUtil {
    * Rewrites the brand message to show the backend brand and proxy instance name.
    *
    * @param message the plugin message
+   * @param backendName the configured backend server name
    * @param proxyName the configured proxy instance name
    * @return the rewritten plugin message
    */
   public static PluginMessagePacket rewriteMinecraftBrand(PluginMessagePacket message,
+                                                          String backendName,
                                                           String proxyName,
                                                           ProtocolVersion protocolVersion) {
     checkNotNull(message, "message");
+    checkNotNull(backendName, "backendName");
     checkNotNull(proxyName, "proxyName");
     checkArgument(isMcBrand(message), "message is not a brand plugin message");
 
-    String currentBrand = readBrandMessage(message.content());
-    String rewrittenBrand = String.format("%s via %s", currentBrand, proxyName);
+    readBrandMessage(message.content());
+    String rewrittenBrand = String.format("%s via %s", backendName, proxyName);
 
     ByteBuf rewrittenBuf = Unpooled.buffer();
     if (protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_8)) {

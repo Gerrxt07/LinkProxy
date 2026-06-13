@@ -58,28 +58,31 @@ class PluginMessageUtilTest {
   }
 
   @Test
-  void rewriteMinecraftBrandAddsProxyNameForModernPayloads() {
+  void rewriteMinecraftBrandUsesConfiguredBackendAndProxyNamesForModernPayloads() {
     ByteBuf content = Unpooled.buffer();
     ProtocolUtils.writeString(content, "Paper");
     PluginMessagePacket rewritten = PluginMessageUtil.rewriteMinecraftBrand(
         new PluginMessagePacket("minecraft:brand", content),
+        "forge-community",
         "Proxy-2",
         ProtocolVersion.MINECRAFT_1_20_5);
 
     assertEquals("minecraft:brand", rewritten.getChannel());
-    assertEquals("Paper via Proxy-2", PluginMessageUtil.readBrandMessage(rewritten.content()));
+    assertEquals("forge-community via Proxy-2",
+        PluginMessageUtil.readBrandMessage(rewritten.content()));
   }
 
   @Test
-  void rewriteMinecraftBrandAddsProxyNameForLegacyPayloads() {
+  void rewriteMinecraftBrandUsesConfiguredBackendAndProxyNamesForLegacyPayloads() {
     PluginMessagePacket rewritten = PluginMessageUtil.rewriteMinecraftBrand(
         new PluginMessagePacket("MC|Brand",
             Unpooled.copiedBuffer("CraftBukkit", StandardCharsets.UTF_8)),
+        "lobby",
         "Proxy-1",
         ProtocolVersion.MINECRAFT_1_7_6);
 
     assertEquals("MC|Brand", rewritten.getChannel());
-    assertEquals("CraftBukkit via Proxy-1",
+    assertEquals("lobby via Proxy-1",
         PluginMessageUtil.readBrandMessage(rewritten.content()));
   }
 
