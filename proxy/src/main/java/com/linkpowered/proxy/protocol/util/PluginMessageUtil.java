@@ -25,7 +25,6 @@ import com.linkpowered.api.network.ProtocolVersion;
 import com.linkpowered.api.proxy.messages.ChannelIdentifier;
 import com.linkpowered.api.proxy.messages.LegacyChannelIdentifier;
 import com.linkpowered.api.proxy.messages.MinecraftChannelIdentifier;
-import com.linkpowered.api.util.ProxyVersion;
 import com.linkpowered.proxy.connection.client.ConnectedPlayer;
 import com.linkpowered.proxy.protocol.ProtocolUtils;
 import com.linkpowered.proxy.protocol.netty.MinecraftDecoder;
@@ -170,21 +169,21 @@ public final class PluginMessageUtil {
   }
 
   /**
-   * Rewrites the brand message to indicate the presence of Link.
+   * Rewrites the brand message to show the backend brand and proxy instance name.
    *
    * @param message the plugin message
-   * @param version the proxy version
+   * @param proxyName the configured proxy instance name
    * @return the rewritten plugin message
    */
   public static PluginMessagePacket rewriteMinecraftBrand(PluginMessagePacket message,
-                                                          ProxyVersion version,
+                                                          String proxyName,
                                                           ProtocolVersion protocolVersion) {
     checkNotNull(message, "message");
-    checkNotNull(version, "version");
+    checkNotNull(proxyName, "proxyName");
     checkArgument(isMcBrand(message), "message is not a brand plugin message");
 
     String currentBrand = readBrandMessage(message.content());
-    String rewrittenBrand = String.format("%s (%s)", currentBrand, version.getName());
+    String rewrittenBrand = String.format("%s via %s", currentBrand, proxyName);
 
     ByteBuf rewrittenBuf = Unpooled.buffer();
     if (protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_8)) {

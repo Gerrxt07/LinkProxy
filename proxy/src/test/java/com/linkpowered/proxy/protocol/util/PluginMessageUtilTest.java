@@ -19,6 +19,12 @@ package com.linkpowered.proxy.protocol.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.linkpowered.api.network.ProtocolVersion;
+import com.linkpowered.proxy.protocol.ProtocolUtils;
+import com.linkpowered.proxy.protocol.packet.PluginMessagePacket;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 class PluginMessageUtilTest {
@@ -50,4 +56,31 @@ class PluginMessageUtilTest {
     assertEquals("legacy:pskeepalive", PluginMessageUtil
         .transformLegacyToModernChannel("PS|KeepAlive"));
   }
+
+  @Test
+  void rewriteMinecraftBrandAddsProxyNameForModernPayloads() {
+    ByteBuf content = Unpooled.buffer();
+    ProtocolUtils.writeString(content, "Paper");
+    PluginMessagePacket rewritten = PluginMessageUtil.rewriteMinecraftBrand(
+        new PluginMessagePacket("minecraft:brand", content),
+        "Proxy-2",
+        ProtocolVersion.MINECRAFT_1_20_5);
+
+    assertEquals("minecraft:brand", rewritten.getChannel());
+    assertEquals("Paper via Proxy-2", PluginMessageUtil.readBrandMessage(rewritten.content()));
+  }
+
+  @Test
+  void rewriteMinecraftBrandAddsProxyNameForLegacyPayloads() {
+    PluginMessagePacket rewritten = PluginMessageUtil.rewriteMinecraftBrand(
+        new PluginMessagePacket("MC|Brand",
+            Unpooled.copiedBuffer("CraftBukkit", StandardCharsets.UTF_8)),
+        "Proxy-1",
+        ProtocolVersion.MINECRAFT_1_7_6);
+
+    assertEquals("MC|Brand", rewritten.getChannel());
+    assertEquals("CraftBukkit via Proxy-1",
+        PluginMessageUtil.readBrandMessage(rewritten.content()));
+  }
+
 }
