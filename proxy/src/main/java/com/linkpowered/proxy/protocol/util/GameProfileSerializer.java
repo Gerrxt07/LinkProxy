@@ -17,6 +17,7 @@
 
 package com.linkpowered.proxy.protocol.util;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -24,10 +25,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-import com.google.gson.reflect.TypeToken;
 import com.linkpowered.api.util.GameProfile;
 import com.linkpowered.api.util.GameProfile.Property;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -37,8 +38,6 @@ public final class GameProfileSerializer implements JsonSerializer<GameProfile>,
     JsonDeserializer<GameProfile> {
 
   public static final GameProfileSerializer INSTANCE = new GameProfileSerializer();
-  private static final Type propertyList = new TypeToken<List<Property>>() {
-  }.getType();
 
   private GameProfileSerializer() {
 
@@ -49,7 +48,7 @@ public final class GameProfileSerializer implements JsonSerializer<GameProfile>,
       JsonDeserializationContext context) {
     JsonObject obj = json.getAsJsonObject();
     return new GameProfile(obj.get("id").getAsString(), obj.get("name").getAsString(),
-        context.deserialize(obj.get("properties"), propertyList));
+        deserializeProperties(obj.get("properties")));
   }
 
   @Override
@@ -57,7 +56,31 @@ public final class GameProfileSerializer implements JsonSerializer<GameProfile>,
     JsonObject obj = new JsonObject();
     obj.add("id", new JsonPrimitive(src.getUndashedId()));
     obj.add("name", new JsonPrimitive(src.getName()));
-    obj.add("properties", context.serialize(src.getProperties(), propertyList));
+    obj.add("properties", serializeProperties(src.getProperties()));
     return obj;
+  }
+
+  private static JsonElement serializeProperties(List<Property> properties) {
+    JsonArray result = new JsonArray(properties.size());
+    for (Property property : properties) {
+      JsonObject propertyJson = new JsonObject();
+      propertyJson.add("name", new JsonPrimitive(property.getName()));
+      propertyJson.add("value", new JsonPrimitive(property.getValue()));
+      propertyJson.add("signature", new JsonPrimitive(property.getSignature()));
+      result.add(propertyJson);
+    }
+    return result;
+  }
+
+  private static List<Property> deserializeProperties(JsonElement json) {
+    List<Property> result = new ArrayList<>();
+    for (JsonElement element : json.getAsJsonArray()) {
+      JsonObject propertyJson = element.getAsJsonObject();
+      result.add(new Property(
+          propertyJson.get("name").getAsString(),
+          propertyJson.get("value").getAsString(),
+          propertyJson.get("signature").getAsString()));
+    }
+    return result;
   }
 }

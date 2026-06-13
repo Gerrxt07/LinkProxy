@@ -13,7 +13,6 @@ application {
     applicationDefaultJvmArgs += listOf(
         "--add-modules=jdk.incubator.vector",
         "--enable-native-access=ALL-UNNAMED",
-        "--enable-final-field-mutation=ALL-UNNAMED",
     )
 }
 
@@ -24,6 +23,7 @@ tasks {
 
     withType<Test>().configureEach {
         jvmArgs("--add-modules", "jdk.incubator.vector")
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
     }
 
     withType<Checkstyle> {
@@ -118,12 +118,12 @@ tasks {
         standardInput = System.`in`
         jvmArgs("--add-modules=jdk.incubator.vector")
         jvmArgs("--enable-native-access=ALL-UNNAMED")
-        jvmArgs("--enable-final-field-mutation=ALL-UNNAMED")
     }
     named<JavaExec>("run") {
         workingDir = file("run").also(File::mkdirs)
         standardInput = System.`in` // Doesn't work?
         jvmArgs("--add-modules=jdk.incubator.vector")
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
     }
 }
 
