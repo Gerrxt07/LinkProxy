@@ -175,7 +175,6 @@ dependencies {
     implementation(libs.completablefutures)
     implementation(libs.nightconfig)
     implementation(libs.maxmind.db)
-    implementation(libs.jackson.databind)
     implementation(libs.redisson)
     implementation(libs.lmbda)
     implementation(libs.asm)

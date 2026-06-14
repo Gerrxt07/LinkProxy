@@ -20,20 +20,21 @@ package com.linkpowered.proxy.protection;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.maxmind.db.Reader;
+import java.io.File;
+import java.net.InetAddress;
+import java.nio.file.Path;
+import java.util.Map;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 
 class AsnProtectionServiceTest {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
   @Test
   void extractsCommonAsnFields() throws Exception {
     OptionalInt snakeCase = AsnProtectionService.extractAsn(
-        OBJECT_MAPPER.readTree("{\"autonomous_system_number\":24940}"));
-    OptionalInt asn = AsnProtectionService.extractAsn(
-        OBJECT_MAPPER.readTree("{\"asn\":\"AS16276\"}"));
+        Map.of("autonomous_system_number", 24940));
+    OptionalInt asn = AsnProtectionService.extractAsn(Map.of("asn", "AS16276"));
 
     assertTrue(snakeCase.isPresent());
     assertEquals(24940, snakeCase.getAsInt());
@@ -44,16 +45,31 @@ class AsnProtectionServiceTest {
   @Test
   void extractsNestedAsnFields() throws Exception {
     OptionalInt extracted = AsnProtectionService.extractAsn(
-        OBJECT_MAPPER.readTree("{\"traits\":{\"autonomousSystemNumber\":14061}}"));
+        Map.of("traits", Map.of("autonomousSystemNumber", 14061)));
 
     assertTrue(extracted.isPresent());
     assertEquals(14061, extracted.getAsInt());
   }
 
+
+  @Test
+  void decodesRealMmdbRecordIntoExtractor() throws Exception {
+    File database = Path.of("dbip-asn-lite-2026-06.mmdb").toFile();
+    if (!database.isFile()) {
+      return;
+    }
+
+    try (Reader reader = new Reader(database)) {
+      Map<String, Object> record = reader.get(InetAddress.getByName("82.144.35.10"), Map.class);
+      OptionalInt extracted = AsnProtectionService.extractAsn(record);
+
+      assertTrue(extracted.isPresent());
+    }
+  }
+
   @Test
   void returnsEmptyWhenNoAsnIsPresent() throws Exception {
     assertTrue(AsnProtectionService.extractAsn(
-        OBJECT_MAPPER.readTree("{\"country\":{\"iso_code\":\"DE\"}}"))
-        .isEmpty());
+        Map.of("country", Map.of("iso_code", "DE"))).isEmpty());
   }
 }

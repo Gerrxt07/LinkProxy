@@ -17,7 +17,6 @@
 
 package com.linkpowered.proxy.protection;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.linkpowered.proxy.config.LinkConfiguration;
 import com.linkpowered.proxy.connection.client.ConnectedPlayer;
 import com.linkpowered.proxy.dragonfly.DragonflyProtectionService;
@@ -27,7 +26,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -123,7 +121,7 @@ public final class AsnProtectionService implements AutoCloseable {
 
   private void checkPlayer(InetAddress address, String hostAddress, ConnectedPlayer player, Reader activeReader) {
     try {
-      JsonNode response = activeReader.get(address, JsonNode.class);
+      Map<String, Object> response = activeReader.get(address, Map.class);
       OptionalInt asn = extractAsn(response);
       if (asn.isEmpty()) {
         logger.debug("ASN guard found no ASN for {} ({}).", player.getUsername(), hostAddress);
@@ -169,36 +167,42 @@ public final class AsnProtectionService implements AutoCloseable {
     }
   }
 
-  static OptionalInt extractAsn(JsonNode node) {
-    if (node == null || node.isNull()) {
+  static OptionalInt extractAsn(Object value) {
+    if (value == null) {
       return OptionalInt.empty();
     }
 
-    OptionalInt direct = extractAsnValue(node);
+    OptionalInt direct = extractAsnValue(value);
     if (direct.isPresent()) {
       return direct;
     }
 
-    if (node.isObject()) {
-      Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
-      while (fields.hasNext()) {
-        Map.Entry<String, JsonNode> field = fields.next();
-        if (ASN_FIELD_NAMES.contains(normalizeFieldName(field.getKey()))) {
-          OptionalInt value = extractAsnValue(field.getValue());
-          if (value.isPresent()) {
-            return value;
+    if (value instanceof Map<?, ?> map) {
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        if (entry.getKey() instanceof String key
+            && ASN_FIELD_NAMES.contains(normalizeFieldName(key))) {
+          OptionalInt asn = extractAsnValue(entry.getValue());
+          if (asn.isPresent()) {
+            return asn;
           }
         }
       }
-      fields = node.fields();
-      while (fields.hasNext()) {
-        OptionalInt nested = extractAsn(fields.next().getValue());
+      for (Object child : map.values()) {
+        OptionalInt nested = extractAsn(child);
         if (nested.isPresent()) {
           return nested;
         }
       }
-    } else if (node.isArray()) {
-      for (JsonNode child : node) {
+    } else if (value instanceof Iterable<?> iterable) {
+      for (Object child : iterable) {
+        OptionalInt nested = extractAsn(child);
+        if (nested.isPresent()) {
+          return nested;
+        }
+      }
+    } else if (value.getClass().isArray()) {
+      Object[] array = (Object[]) value;
+      for (Object child : array) {
         OptionalInt nested = extractAsn(child);
         if (nested.isPresent()) {
           return nested;
@@ -209,15 +213,15 @@ public final class AsnProtectionService implements AutoCloseable {
     return OptionalInt.empty();
   }
 
-  private static OptionalInt extractAsnValue(JsonNode node) {
-    if (node == null || node.isNull()) {
+  private static OptionalInt extractAsnValue(Object value) {
+    if (value == null) {
       return OptionalInt.empty();
     }
-    if (node.canConvertToInt()) {
-      return OptionalInt.of(node.asInt());
+    if (value instanceof Number number) {
+      return OptionalInt.of(number.intValue());
     }
-    if (node.isTextual()) {
-      String text = node.asText().toUpperCase(Locale.ROOT);
+    if (value instanceof String string) {
+      String text = string.toUpperCase(Locale.ROOT);
       if (text.startsWith("AS")) {
         text = text.substring(2);
       }

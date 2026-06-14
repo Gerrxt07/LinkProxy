@@ -56,7 +56,6 @@ netty-transport-native-kqueue = { module = "io.netty:netty-transport-native-kque
 netty-transport-native-iouring = { module = "io.netty:netty-transport-native-io_uring", version.ref = "netty" }
 nightconfig = "com.electronwill.night-config:toml:3.8.3"
 maxmind-db = "com.maxmind.db:maxmind-db:4.1.0"
-jackson-databind = "com.fasterxml.jackson.core:jackson-databind:2.18.2"
 redisson = "org.redisson:redisson:3.45.1"
 slf4j = "org.slf4j:slf4j-api:2.0.17"
 snakeyaml = "org.yaml:snakeyaml:2.5"
