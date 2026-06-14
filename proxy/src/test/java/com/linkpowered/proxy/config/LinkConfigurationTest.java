@@ -79,6 +79,36 @@ class LinkConfigurationTest {
 
 
   @Test
+  void asnGuardDefaultsToDisabledLocalDatabase() {
+    LinkConfiguration.AsnGuard asnGuard = asnGuard(null);
+
+    assertFalse(asnGuard.isEnabled());
+    assertEquals("dbip-asn-lite-2026-06.mmdb", asnGuard.getDatabaseFile());
+    assertEquals(List.of(), asnGuard.getBlockedAsns());
+    assertEquals(2, asnGuard.getThreads());
+    assertEquals("VPN/Proxy connections are prohibited on this network.",
+        asnGuard.getDisconnectMessage());
+  }
+
+  @Test
+  void readsCustomAsnGuardConfiguration() {
+    CommentedConfig config = CommentedConfig.inMemory();
+    config.set("enabled", true);
+    config.set("database-file", "/srv/shared/Server/LinkProxy/dbip-asn-lite-2026-06.mmdb");
+    config.set("blocked-asns", List.of(24940, 16276));
+    config.set("threads", 4);
+    config.set("disconnect-message", "No VPNs.");
+
+    LinkConfiguration.AsnGuard asnGuard = asnGuard(config);
+
+    assertTrue(asnGuard.isEnabled());
+    assertEquals("/srv/shared/Server/LinkProxy/dbip-asn-lite-2026-06.mmdb", asnGuard.getDatabaseFile());
+    assertEquals(List.of(24940, 16276), asnGuard.getBlockedAsns());
+    assertEquals(4, asnGuard.getThreads());
+    assertEquals("No VPNs.", asnGuard.getDisconnectMessage());
+  }
+
+  @Test
   void readsAndNormalizesAllowedHosts(@TempDir Path tempDir) throws IOException {
     Path config = tempDir.resolve("link.toml");
     Files.writeString(config, """
@@ -106,6 +136,18 @@ class LinkConfigurationTest {
     assertTrue(configuration.isHostAllowed("play.example.com:25565"));
     assertFalse(configuration.isHostAllowed("2.59.133.137"));
     assertFalse(configuration.isHostAllowed("unknown.example.com"));
+  }
+
+  private static LinkConfiguration.AsnGuard asnGuard(CommentedConfig config) {
+    try {
+      Constructor<LinkConfiguration.AsnGuard> constructor =
+          LinkConfiguration.AsnGuard.class.getDeclaredConstructor(CommentedConfig.class);
+      constructor.setAccessible(true);
+      return constructor.newInstance(config);
+    } catch (IllegalAccessException | InstantiationException | InvocationTargetException
+        | NoSuchMethodException ex) {
+      throw new AssertionError(ex);
+    }
   }
 
   private static LinkConfiguration.Dragonfly dragonfly(CommentedConfig config) {

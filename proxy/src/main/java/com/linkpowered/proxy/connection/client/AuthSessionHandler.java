@@ -228,6 +228,8 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
           return;
         }
 
+        server.getAsnProtection().checkPlayer(player);
+
         ServerLoginSuccessPacket success = new ServerLoginSuccessPacket();
         success.setUsername(player.getUsername());
         success.setProperties(player.getGameProfileProperties());

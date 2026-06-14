@@ -86,6 +86,8 @@ public class LinkConfiguration implements ProxyConfig {
   @Expose
   private final Dragonfly dragonfly;
   @Expose
+  private final AsnGuard asnGuard;
+  @Expose
   private boolean enablePlayerAddressLogging = true;
   private net.kyori.adventure.text.@MonotonicNonNull Component motdAsComponent;
   private @Nullable Favicon favicon;
@@ -100,13 +102,14 @@ public class LinkConfiguration implements ProxyConfig {
     this.advanced = advanced;
     this.query = query;
     this.dragonfly = dragonfly;
+    this.asnGuard = new AsnGuard();
   }
 
   private LinkConfiguration(String bind, String networkTransport, String proxyName, String motd,
       int showMaxPlayers, boolean preventClientProxyConnections, byte[] forwardingSecret,
       boolean onlineModeKickExistingPlayers, boolean enablePlayerAddressLogging,
       List<String> allowedHosts, Servers servers, ForcedHosts forcedHosts, Advanced advanced,
-      Query query, Dragonfly dragonfly,
+      Query query, Dragonfly dragonfly, AsnGuard asnGuard,
       PacketLimiterConfig packetLimiterConfig) {
     this.bind = bind;
     this.networkTransport = networkTransport;
@@ -123,6 +126,7 @@ public class LinkConfiguration implements ProxyConfig {
     this.advanced = advanced;
     this.query = query;
     this.dragonfly = dragonfly;
+    this.asnGuard = asnGuard;
     this.packetLimiterConfig = packetLimiterConfig;
   }
 
@@ -246,6 +250,20 @@ public class LinkConfiguration implements ProxyConfig {
       valid = false;
     }
 
+    if (asnGuard.enabled) {
+      if (asnGuard.databaseFile.isBlank()) {
+        logger.error("'asn-guard.database-file' option is empty while ASN guard is enabled.");
+        valid = false;
+      }
+      if (asnGuard.threads <= 0) {
+        logger.error("'asn-guard.threads' must be positive while ASN guard is enabled.");
+        valid = false;
+      }
+      if (asnGuard.blockedAsns.isEmpty()) {
+        logger.warn("ASN guard is enabled without blocked ASNs; lookups will never block players.");
+      }
+    }
+
     loadFavicon();
 
     return valid;
@@ -288,6 +306,10 @@ public class LinkConfiguration implements ProxyConfig {
 
   public Dragonfly getDragonfly() {
     return dragonfly;
+  }
+
+  public AsnGuard getAsnGuard() {
+    return asnGuard;
   }
 
   public List<String> getAllowedHosts() {
@@ -482,6 +504,8 @@ public class LinkConfiguration implements ProxyConfig {
         .add("forcedHosts", forcedHosts)
         .add("advanced", advanced)
         .add("query", query)
+        .add("dragonfly", dragonfly)
+        .add("asnGuard", asnGuard)
         .add("favicon", favicon)
         .add("enablePlayerAddressLogging", enablePlayerAddressLogging)
         .add("forceKeyAuthentication", true)
@@ -589,6 +613,7 @@ public class LinkConfiguration implements ProxyConfig {
       final CommentedConfig advancedConfig = config.get("advanced");
       final CommentedConfig queryConfig = config.get("query");
       final CommentedConfig dragonflyConfig = config.get("dragonfly");
+      final CommentedConfig asnGuardConfig = config.get("asn-guard");
       final String bind = config.getOrElse("bind", "0.0.0.0:25565");
       final String networkTransport = config.getOrElse("network-transport", "auto");
       final String proxyName = config.getOrElse("proxy-name", "Link");
@@ -620,6 +645,7 @@ public class LinkConfiguration implements ProxyConfig {
               new Advanced(advancedConfig),
               new Query(queryConfig),
               new Dragonfly(dragonflyConfig),
+              new AsnGuard(asnGuardConfig),
               packetLimiterConfig
       );
     }
@@ -1027,6 +1053,58 @@ public class LinkConfiguration implements ProxyConfig {
     }
   }
 
+
+
+  /**
+   * ASN guard configuration for local MMDB-based VPN/proxy detection.
+   */
+  public static class AsnGuard {
+
+    @Expose
+    private boolean enabled = false;
+    @Expose
+    private String databaseFile = "dbip-asn-lite-2026-06.mmdb";
+    @Expose
+    private List<Integer> blockedAsns = List.of();
+    @Expose
+    private int threads = 2;
+    @Expose
+    private String disconnectMessage = "VPN/Proxy connections are prohibited on this network.";
+
+    private AsnGuard() {
+    }
+
+    private AsnGuard(CommentedConfig config) {
+      if (config != null) {
+        this.enabled = config.getOrElse("enabled", false);
+        this.databaseFile = config.getOrElse("database-file", "dbip-asn-lite-2026-06.mmdb");
+        this.blockedAsns = ImmutableList.copyOf(config.getOrElse("blocked-asns", List.of()));
+        this.threads = config.getIntOrElse("threads", 2);
+        this.disconnectMessage = config.getOrElse("disconnect-message",
+            "VPN/Proxy connections are prohibited on this network.");
+      }
+    }
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public String getDatabaseFile() {
+      return databaseFile;
+    }
+
+    public List<Integer> getBlockedAsns() {
+      return blockedAsns;
+    }
+
+    public int getThreads() {
+      return threads;
+    }
+
+    public String getDisconnectMessage() {
+      return disconnectMessage;
+    }
+  }
 
   /**
    * Dragonfly/Redis configuration for multi-proxy state and early protection.

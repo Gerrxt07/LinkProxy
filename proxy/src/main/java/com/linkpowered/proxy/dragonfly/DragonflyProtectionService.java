@@ -211,6 +211,32 @@ public final class DragonflyProtectionService implements AutoCloseable {
   }
 
   /**
+   * Adds an address to the shared VPN/proxy IP set for future early drops.
+   *
+   * @param hostAddress the textual IP address to add
+   */
+  public void addVpnAddressAsync(String hostAddress) {
+    if (!isConnected() || hostAddress.isBlank()) {
+      return;
+    }
+    try {
+      set(configuration.getVpnIpSet()).addAsync(hostAddress)
+          .whenComplete((added, throwable) -> {
+            if (throwable != null) {
+              logger.warn("Dragonfly failed to add {} to VPN IP set {}; future joins will not be dropped early.",
+                  hostAddress, configuration.getVpnIpSet(), throwable);
+            } else if (Boolean.TRUE.equals(added)) {
+              logger.info("Dragonfly added {} to VPN IP set '{}' for future early drops.",
+                  hostAddress, configuration.getVpnIpSet());
+            }
+          });
+    } catch (Exception ex) {
+      logger.warn("Dragonfly failed to queue VPN IP set add for {}; future joins will not be dropped early.",
+          hostAddress, ex);
+    }
+  }
+
+  /**
    * Removes a player from shared multi-proxy state when this proxy owns the record.
    *
    * @param player the player connection

@@ -153,6 +153,17 @@ vpn-ip-set = "vpn-ips"
 # Cross-proxy login attempt limiter in milliseconds. Use 0 to disable.
 shared-login-ratelimit = 3000
 
+[asn-guard]
+# Enable local MMDB-backed ASN checks after successful login.
+enabled = false
+# Path to a MaxMind/DB-IP ASN MMDB file. Relative paths resolve from the proxy working directory.
+database-file = "dbip-asn-lite-2026-06.mmdb"
+# AS numbers to block after the first successful login check.
+blocked-asns = []
+# Worker threads used for async MMDB lookups.
+threads = 2
+disconnect-message = "VPN/Proxy connections are prohibited on this network."
+
 [query]
 # Enable GameSpy 4 query responses.
 enabled = false

@@ -59,6 +59,7 @@ import com.linkpowered.proxy.plugin.LinkPluginManager;
 import com.linkpowered.proxy.plugin.loader.LinkPluginContainer;
 import com.linkpowered.proxy.plugin.loader.LinkPluginDescription;
 import com.linkpowered.proxy.plugin.virtual.LinkVirtualPlugin;
+import com.linkpowered.proxy.protection.AsnProtectionService;
 import com.linkpowered.proxy.protocol.ProtocolUtils;
 import com.linkpowered.proxy.protocol.util.FaviconSerializer;
 import com.linkpowered.proxy.protocol.util.GameProfileSerializer;
@@ -161,6 +162,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
   private final ProxyOptions options;
   private @MonotonicNonNull LinkConfiguration configuration;
   private @MonotonicNonNull DragonflyProtectionService dragonflyProtection;
+  private @MonotonicNonNull AsnProtectionService asnProtection;
   private @MonotonicNonNull KeyPair serverKeyPair;
   private final ServerMap servers;
   private final LinkCommandManager commandManager;
@@ -294,6 +296,8 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
         configuration.getProxyName());
     dragonflyProtection.start(uuid -> getPlayer(uuid).ifPresent(player ->
         player.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login"))));
+    asnProtection = new AsnProtectionService(configuration.getAsnGuard(), dragonflyProtection);
+    asnProtection.start();
     cm = new ConnectionManager(this, configuration.getNetworkTransport());
     cm.logChannelInformation();
 
@@ -607,8 +611,13 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
         newConfiguration.getDragonfly(), newConfiguration.getProxyName());
     newDragonflyProtection.start(uuid -> getPlayer(uuid).ifPresent(player ->
         player.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login"))));
+    AsnProtectionService newAsnProtection = new AsnProtectionService(
+        newConfiguration.getAsnGuard(), newDragonflyProtection);
+    newAsnProtection.start();
+    asnProtection.close();
     dragonflyProtection.close();
     dragonflyProtection = newDragonflyProtection;
+    asnProtection = newAsnProtection;
     this.configuration = newConfiguration;
     eventManager.fireAndForget(new ProxyReloadEvent());
     return true;
@@ -635,6 +644,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
       // Shutdown the connection manager, this should be
       // done first to refuse new connections
       cm.shutdown();
+      asnProtection.close();
       dragonflyProtection.close();
 
       try {
@@ -739,6 +749,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
 
   public @MonotonicNonNull DragonflyProtectionService getDragonflyProtection() {
     return dragonflyProtection;
+  }
+
+  public @MonotonicNonNull AsnProtectionService getAsnProtection() {
+    return asnProtection;
   }
 
   public @MonotonicNonNull Ratelimiter<UUID> getCommandRateLimiter() {
