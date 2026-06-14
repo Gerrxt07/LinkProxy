@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.stream.Collectors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.apache.logging.log4j.LogManager;
@@ -91,9 +92,9 @@ public final class AsnProtectionService implements AutoCloseable {
       this.reader = new Reader(databasePath.toFile(), new CHMCache());
       this.executor = Executors.newFixedThreadPool(configuration.getThreads(), new AsnGuardThreadFactory());
       this.available = true;
-      logger.info("ASN guard loaded {} (database type '{}', build {}) with {} blocked ASN(s).",
+      logger.info("ASN guard loaded {} (database type '{}', build {}) with blocked ASN(s): {}.",
           databasePath.toAbsolutePath(), reader.getMetadata().databaseType(),
-          reader.getMetadata().buildTime(), blockedAsns.size());
+          reader.getMetadata().buildTime(), formatBlockedAsns());
     } catch (Exception ex) {
       this.available = false;
       closeReaderOnly();
@@ -135,7 +136,8 @@ public final class AsnProtectionService implements AutoCloseable {
       }
 
       dragonflyProtection.addVpnAddressAsync(hostAddress);
-      logger.info("ASN guard blocked {} from {} (AS{}).", player.getUsername(), hostAddress, asNumber);
+      logger.info("ASN guard blocked player '{}' from IP {} with ASN AS{}; queued IP for Dragonfly VPN early protection.",
+          player.getUsername(), hostAddress, asNumber);
       player.disconnect(Component.text(configuration.getDisconnectMessage(), NamedTextColor.RED));
     } catch (IOException ex) {
       logger.warn("ASN guard lookup failed for {}; allowing player.", hostAddress, ex);
@@ -153,6 +155,16 @@ public final class AsnProtectionService implements AutoCloseable {
       activeExecutor.shutdownNow();
     }
     closeReaderOnly();
+  }
+
+  private String formatBlockedAsns() {
+    if (blockedAsns.isEmpty()) {
+      return "none";
+    }
+    return blockedAsns.stream()
+        .sorted()
+        .map(asn -> "AS" + asn)
+        .collect(Collectors.joining(", "));
   }
 
   private void closeReaderOnly() {
