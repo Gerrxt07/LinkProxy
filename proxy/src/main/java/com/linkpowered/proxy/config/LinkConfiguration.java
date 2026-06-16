@@ -245,6 +245,21 @@ public class LinkConfiguration implements ProxyConfig {
       valid = false;
     }
 
+    if (advanced.shutdownTransferEnabled) {
+      if (advanced.shutdownTransferHost.isBlank()) {
+        logger.error("'advanced.shutdown-transfer-host' option is empty while shutdown transfer is enabled.");
+        valid = false;
+      }
+      if (advanced.shutdownTransferPort <= 0 || advanced.shutdownTransferPort > 65535) {
+        logger.error("'advanced.shutdown-transfer-port' must be between 1 and 65535.");
+        valid = false;
+      }
+      if (advanced.shutdownTransferWaitMillis < 0) {
+        logger.error("'advanced.shutdown-transfer-wait-millis' must not be negative.");
+        valid = false;
+      }
+    }
+
     if (dragonfly.enabled && dragonfly.address.isBlank()) {
       logger.error("'dragonfly.address' option is empty while Dragonfly is enabled.");
       valid = false;
@@ -476,6 +491,22 @@ public class LinkConfiguration implements ProxyConfig {
 
   public boolean isAcceptTransfers() {
     return this.advanced.isAcceptTransfers();
+  }
+
+  public boolean isShutdownTransferEnabled() {
+    return this.advanced.isShutdownTransferEnabled();
+  }
+
+  public String getShutdownTransferHost() {
+    return this.advanced.getShutdownTransferHost();
+  }
+
+  public int getShutdownTransferPort() {
+    return this.advanced.getShutdownTransferPort();
+  }
+
+  public int getShutdownTransferWaitMillis() {
+    return this.advanced.getShutdownTransferWaitMillis();
   }
 
   public boolean isForceKeyAuthentication() {
@@ -845,6 +876,14 @@ public class LinkConfiguration implements ProxyConfig {
     @Expose
     private boolean acceptTransfers = false;
     @Expose
+    private boolean shutdownTransferEnabled = false;
+    @Expose
+    private String shutdownTransferHost = "localhost";
+    @Expose
+    private int shutdownTransferPort = 25565;
+    @Expose
+    private int shutdownTransferWaitMillis = 1500;
+    @Expose
     private boolean enableReusePort = false;
     @Expose
     private int commandRateLimit = 50;
@@ -881,6 +920,10 @@ public class LinkConfiguration implements ProxyConfig {
         this.logCommandExecutions = config.getOrElse("log-command-executions", false);
         this.logPlayerConnections = config.getOrElse("log-player-connections", true);
         this.acceptTransfers = config.getOrElse("accepts-transfers", false);
+        this.shutdownTransferEnabled = config.getOrElse("shutdown-transfer-enabled", false);
+        this.shutdownTransferHost = config.getOrElse("shutdown-transfer-host", "localhost");
+        this.shutdownTransferPort = config.getIntOrElse("shutdown-transfer-port", 25565);
+        this.shutdownTransferWaitMillis = config.getIntOrElse("shutdown-transfer-wait-millis", 1500);
         this.enableReusePort = config.getOrElse("enable-reuse-port", false);
         this.commandRateLimit = config.getIntOrElse("command-rate-limit", 25);
         this.forwardCommandsIfRateLimited = config.getOrElse("forward-commands-if-rate-limited", true);
@@ -950,6 +993,22 @@ public class LinkConfiguration implements ProxyConfig {
       return this.acceptTransfers;
     }
 
+    public boolean isShutdownTransferEnabled() {
+      return shutdownTransferEnabled;
+    }
+
+    public String getShutdownTransferHost() {
+      return shutdownTransferHost;
+    }
+
+    public int getShutdownTransferPort() {
+      return shutdownTransferPort;
+    }
+
+    public int getShutdownTransferWaitMillis() {
+      return shutdownTransferWaitMillis;
+    }
+
     public boolean isEnableReusePort() {
       return enableReusePort;
     }
@@ -991,6 +1050,10 @@ public class LinkConfiguration implements ProxyConfig {
           + ", logCommandExecutions=" + logCommandExecutions
           + ", logPlayerConnections=" + logPlayerConnections
           + ", acceptTransfers=" + acceptTransfers
+          + ", shutdownTransferEnabled=" + shutdownTransferEnabled
+          + ", shutdownTransferHost='" + shutdownTransferHost + '\''
+          + ", shutdownTransferPort=" + shutdownTransferPort
+          + ", shutdownTransferWaitMillis=" + shutdownTransferWaitMillis
           + ", enableReusePort=" + enableReusePort
           + '}';
     }

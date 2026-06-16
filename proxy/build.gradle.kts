@@ -13,6 +13,7 @@ application {
     applicationDefaultJvmArgs += listOf(
         "--add-modules=jdk.incubator.vector",
         "--enable-native-access=ALL-UNNAMED",
+        "--sun-misc-unsafe-memory-access=allow",
     )
 }
 
@@ -24,6 +25,7 @@ tasks {
     withType<Test>().configureEach {
         jvmArgs("--add-modules", "jdk.incubator.vector")
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+        jvmArgs("--sun-misc-unsafe-memory-access=allow")
     }
 
     withType<Checkstyle> {
@@ -118,12 +120,14 @@ tasks {
         standardInput = System.`in`
         jvmArgs("--add-modules=jdk.incubator.vector")
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+        jvmArgs("--sun-misc-unsafe-memory-access=allow")
     }
     named<JavaExec>("run") {
         workingDir = file("run").also(File::mkdirs)
         standardInput = System.`in` // Doesn't work?
         jvmArgs("--add-modules=jdk.incubator.vector")
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+        jvmArgs("--sun-misc-unsafe-memory-access=allow")
     }
 }
 

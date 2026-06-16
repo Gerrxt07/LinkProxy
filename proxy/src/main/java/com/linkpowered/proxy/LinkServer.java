@@ -106,6 +106,7 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.audience.ForwardingAudience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.apache.logging.log4j.LogManager;
@@ -157,6 +158,8 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
       .create();
   private static final int PRE_SHUTDOWN_TIMEOUT =
             Integer.getInteger("link.pre-shutdown-timeout", 10);
+  private static final int SHUTDOWN_TRANSFER_NOTICE_MILLIS =
+            Integer.getInteger("link.shutdown-transfer-notice-millis", 750);
 
   private @MonotonicNonNull ConnectionManager cm;
   private final ProxyOptions options;
@@ -623,6 +626,92 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     return true;
   }
 
+  private void transferPlayersBeforeShutdown(ImmutableList<ConnectedPlayer> players) {
+    if (!configuration.isShutdownTransferEnabled() || players.isEmpty()) {
+      return;
+    }
+
+    InetSocketAddress transferTarget = InetSocketAddress.createUnresolved(
+        configuration.getShutdownTransferHost(), configuration.getShutdownTransferPort());
+    ImmutableList.Builder<ConnectedPlayer> eligiblePlayers = ImmutableList.builder();
+    int skipped = 0;
+    for (ConnectedPlayer player : players) {
+      if (!player.isActive() || player.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_5)) {
+        skipped++;
+        continue;
+      }
+      try {
+        Component notice = Component.translatable("link.transfer.shutdown", NamedTextColor.YELLOW,
+            Component.text(player.getUsername()), Component.text(configuration.getProxyName()));
+        player.sendMessage(notice);
+        player.sendActionBar(notice);
+        eligiblePlayers.add(player);
+      } catch (Exception ex) {
+        skipped++;
+        logger.warn("Unable to notify {} before shutdown transfer; player will be kicked normally.",
+            player.getUsername(), ex);
+      }
+    }
+
+    ImmutableList<ConnectedPlayer> notifiedPlayers = eligiblePlayers.build();
+    if (notifiedPlayers.isEmpty()) {
+      logger.info("No shutdown transfer packets sent; {} player(s) were not eligible.", skipped);
+      return;
+    }
+
+    sleepBeforeShutdownTransfer();
+
+    int transferred = 0;
+    for (ConnectedPlayer player : notifiedPlayers) {
+      if (!player.isActive()) {
+        skipped++;
+        continue;
+      }
+      try {
+        player.transferToHost(transferTarget);
+        transferred++;
+        logger.info("Transferring {} to {}:{} before proxy shutdown.",
+            player.getUsername(), transferTarget.getHostString(), transferTarget.getPort());
+      } catch (Exception ex) {
+        skipped++;
+        logger.warn("Unable to transfer {} to {}:{} before proxy shutdown; player will be kicked normally.",
+            player.getUsername(), transferTarget.getHostString(), transferTarget.getPort(), ex);
+      }
+    }
+
+    if (transferred == 0) {
+      logger.info("No shutdown transfer packets sent; {} player(s) were not eligible.", skipped);
+      return;
+    }
+
+    int waitMillis = configuration.getShutdownTransferWaitMillis();
+    logger.info("Sent shutdown transfer packet to {} player(s); waiting {}ms before kicking remaining connections.",
+        transferred, waitMillis);
+    if (waitMillis <= 0) {
+      return;
+    }
+    try {
+      Thread.sleep(waitMillis);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      logger.warn("Interrupted while waiting for shutdown transfers to complete; continuing shutdown.");
+    }
+  }
+
+  private void sleepBeforeShutdownTransfer() {
+    if (SHUTDOWN_TRANSFER_NOTICE_MILLIS <= 0) {
+      return;
+    }
+    logger.info("Sent shutdown transfer notice to eligible player(s); waiting {}ms before transfer.",
+        SHUTDOWN_TRANSFER_NOTICE_MILLIS);
+    try {
+      Thread.sleep(SHUTDOWN_TRANSFER_NOTICE_MILLIS);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      logger.warn("Interrupted while waiting to show shutdown transfer notice; continuing transfer.");
+    }
+  }
+
   /**
    * Shuts down the proxy, kicking players with the specified reason.
    *
@@ -644,6 +733,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
       // Shutdown the connection manager, this should be
       // done first to refuse new connections
       cm.shutdown();
+
+      ImmutableList<ConnectedPlayer> players = ImmutableList.copyOf(connectionsByUuid.values());
+      transferPlayersBeforeShutdown(players);
+
       asnProtection.close();
       dragonflyProtection.close();
 
@@ -661,9 +754,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
         logger.warn("Interrupted while waiting for ProxyPreShutdownEvent; continuing shutdown.");
       }
 
-      ImmutableList<ConnectedPlayer> players = ImmutableList.copyOf(connectionsByUuid.values());
       for (ConnectedPlayer player : players) {
-        player.disconnect(reason);
+        if (player.isActive()) {
+          player.disconnect(reason);
+        }
       }
 
       try {
