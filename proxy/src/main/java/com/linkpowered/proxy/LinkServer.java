@@ -623,6 +623,51 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     return true;
   }
 
+  private void transferPlayersBeforeShutdown(ImmutableList<ConnectedPlayer> players) {
+    if (!configuration.isShutdownTransferEnabled() || players.isEmpty()) {
+      return;
+    }
+
+    InetSocketAddress transferTarget = InetSocketAddress.createUnresolved(
+        configuration.getShutdownTransferHost(), configuration.getShutdownTransferPort());
+    int transferred = 0;
+    int skipped = 0;
+    for (ConnectedPlayer player : players) {
+      if (!player.isActive() || player.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_5)) {
+        skipped++;
+        continue;
+      }
+      try {
+        player.transferToHost(transferTarget);
+        transferred++;
+        logger.info("Transferring {} to {}:{} before proxy shutdown.",
+            player.getUsername(), transferTarget.getHostString(), transferTarget.getPort());
+      } catch (Exception ex) {
+        skipped++;
+        logger.warn("Unable to transfer {} to {}:{} before proxy shutdown; player will be kicked normally.",
+            player.getUsername(), transferTarget.getHostString(), transferTarget.getPort(), ex);
+      }
+    }
+
+    if (transferred == 0) {
+      logger.info("No shutdown transfer packets sent; {} player(s) were not eligible.", skipped);
+      return;
+    }
+
+    int waitMillis = configuration.getShutdownTransferWaitMillis();
+    logger.info("Sent shutdown transfer packet to {} player(s); waiting {}ms before kicking remaining connections.",
+        transferred, waitMillis);
+    if (waitMillis <= 0) {
+      return;
+    }
+    try {
+      Thread.sleep(waitMillis);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      logger.warn("Interrupted while waiting for shutdown transfers to complete; continuing shutdown.");
+    }
+  }
+
   /**
    * Shuts down the proxy, kicking players with the specified reason.
    *
@@ -644,6 +689,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
       // Shutdown the connection manager, this should be
       // done first to refuse new connections
       cm.shutdown();
+
+      ImmutableList<ConnectedPlayer> players = ImmutableList.copyOf(connectionsByUuid.values());
+      transferPlayersBeforeShutdown(players);
+
       asnProtection.close();
       dragonflyProtection.close();
 
@@ -661,9 +710,10 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
         logger.warn("Interrupted while waiting for ProxyPreShutdownEvent; continuing shutdown.");
       }
 
-      ImmutableList<ConnectedPlayer> players = ImmutableList.copyOf(connectionsByUuid.values());
       for (ConnectedPlayer player : players) {
-        player.disconnect(reason);
+        if (player.isActive()) {
+          player.disconnect(reason);
+        }
       }
 
       try {

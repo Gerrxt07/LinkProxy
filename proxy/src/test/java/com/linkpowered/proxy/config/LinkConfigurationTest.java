@@ -123,6 +123,11 @@ class LinkConfigurationTest {
         [forced-hosts]
 
         [advanced]
+        accepts-transfers = true
+        shutdown-transfer-enabled = true
+        shutdown-transfer-host = "mc.phantomcommunity.de"
+        shutdown-transfer-port = 25565
+        shutdown-transfer-wait-millis = 2500
 
         [query]
         """.formatted(tempDir.resolve("forwarding.secret").toAbsolutePath()));
@@ -136,6 +141,11 @@ class LinkConfigurationTest {
     assertTrue(configuration.isHostAllowed("play.example.com:25565"));
     assertFalse(configuration.isHostAllowed("2.59.133.137"));
     assertFalse(configuration.isHostAllowed("unknown.example.com"));
+    assertTrue(configuration.isAcceptTransfers());
+    assertTrue(configuration.isShutdownTransferEnabled());
+    assertEquals("mc.phantomcommunity.de", configuration.getShutdownTransferHost());
+    assertEquals(25565, configuration.getShutdownTransferPort());
+    assertEquals(2500, configuration.getShutdownTransferWaitMillis());
   }
 
   private static LinkConfiguration.AsnGuard asnGuard(CommentedConfig config) {

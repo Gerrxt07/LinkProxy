@@ -102,6 +102,13 @@ log-player-connections = true
 # Accept players transferred from other hosts via the Minecraft 1.20.5 transfer packet.
 accepts-transfers = false
 
+# Transfer Minecraft 1.20.5+ players to another host before a normal proxy shutdown.
+shutdown-transfer-enabled = false
+shutdown-transfer-host = "localhost"
+shutdown-transfer-port = 25565
+# Delay before kicking leftover connections after transfer packets are sent.
+shutdown-transfer-wait-millis = 1500
+
 # Enable SO_REUSEPORT for better accept scaling on supported Linux/macOS systems.
 enable-reuse-port = false
 
