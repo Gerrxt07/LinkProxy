@@ -106,6 +106,7 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.audience.ForwardingAudience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.apache.logging.log4j.LogManager;
@@ -638,6 +639,8 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
         continue;
       }
       try {
+        player.sendMessage(Component.translatable("link.transfer.shutdown", NamedTextColor.YELLOW,
+            Component.text(player.getUsername()), Component.text(configuration.getProxyName())));
         player.transferToHost(transferTarget);
         transferred++;
         logger.info("Transferring {} to {}:{} before proxy shutdown.",
