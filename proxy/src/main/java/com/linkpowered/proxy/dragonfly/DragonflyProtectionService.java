@@ -45,6 +45,7 @@ public final class DragonflyProtectionService implements AutoCloseable {
 
   private static final Logger logger = LogManager.getLogger(DragonflyProtectionService.class);
   private static final Duration PLAYER_TTL = Duration.ofSeconds(90);
+  private static final Duration TRANSFER_NOTICE_TTL = Duration.ofSeconds(45);
   private static final Duration RATE_LIMIT_TTL_FLOOR = Duration.ofMillis(1);
 
   private final LinkConfiguration.Dragonfly configuration;
@@ -237,6 +238,46 @@ public final class DragonflyProtectionService implements AutoCloseable {
   }
 
   /**
+   * Records that a player should see a shutdown transfer notice on the next proxy.
+   *
+   * @param uuid the player UUID
+   */
+  public void recordShutdownTransferNotice(UUID uuid) {
+    if (!isConnected()) {
+      return;
+    }
+    try {
+      bucket(transferNoticeKey(uuid)).set(proxyName, TRANSFER_NOTICE_TTL.toMillis(), TimeUnit.MILLISECONDS);
+    } catch (Exception ex) {
+      logger.warn("Dragonfly failed to record shutdown transfer notice for {}; notice may not be shown.",
+          uuid, ex);
+    }
+  }
+
+  /**
+   * Consumes a pending shutdown transfer notice for a player.
+   *
+   * @param uuid the player UUID
+   * @return the source proxy name, or {@code null} if no notice was pending
+   */
+  public String consumeShutdownTransferNotice(UUID uuid) {
+    if (!isConnected()) {
+      return null;
+    }
+    try {
+      RBucket<String> noticeBucket = bucket(transferNoticeKey(uuid));
+      String sourceProxy = noticeBucket.get();
+      if (sourceProxy != null) {
+        noticeBucket.delete();
+      }
+      return sourceProxy;
+    } catch (Exception ex) {
+      logger.warn("Dragonfly failed to consume shutdown transfer notice for {}.", uuid, ex);
+      return null;
+    }
+  }
+
+  /**
    * Removes a player from shared multi-proxy state when this proxy owns the record.
    *
    * @param player the player connection
@@ -328,6 +369,10 @@ public final class DragonflyProtectionService implements AutoCloseable {
 
   private String uuidKey(UUID uuid) {
     return key("players:uuid:" + uuid);
+  }
+
+  private String transferNoticeKey(UUID uuid) {
+    return key("transfer:shutdown:" + uuid);
   }
 
   private String key(String suffix) {

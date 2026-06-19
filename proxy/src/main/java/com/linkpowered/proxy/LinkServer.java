@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.linkpowered.api.command.BrigadierCommand;
+import com.linkpowered.api.event.player.ServerPostConnectEvent;
 import com.linkpowered.api.event.proxy.ProxyInitializeEvent;
 import com.linkpowered.api.event.proxy.ProxyPreShutdownEvent;
 import com.linkpowered.api.event.proxy.ProxyReloadEvent;
@@ -158,8 +159,6 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
       .create();
   private static final int PRE_SHUTDOWN_TIMEOUT =
             Integer.getInteger("link.pre-shutdown-timeout", 10);
-  private static final int SHUTDOWN_TRANSFER_NOTICE_MILLIS =
-            Integer.getInteger("link.shutdown-transfer-notice-millis", 750);
 
   private @MonotonicNonNull ConnectionManager cm;
   private final ProxyOptions options;
@@ -299,6 +298,8 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
         configuration.getProxyName());
     dragonflyProtection.start(uuid -> getPlayer(uuid).ifPresent(player ->
         player.disconnect(Component.translatable("multiplayer.disconnect.duplicate_login"))));
+    eventManager.register(LinkVirtualPlugin.INSTANCE, ServerPostConnectEvent.class,
+        this::deliverPendingShutdownTransferNotice);
     asnProtection = new AsnProtectionService(configuration.getAsnGuard(), dragonflyProtection);
     asnProtection.start();
     cm = new ConnectionManager(this, configuration.getNetworkTransport());
@@ -633,7 +634,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
 
     InetSocketAddress transferTarget = InetSocketAddress.createUnresolved(
         configuration.getShutdownTransferHost(), configuration.getShutdownTransferPort());
-    ImmutableList.Builder<ConnectedPlayer> eligiblePlayers = ImmutableList.builder();
+    int transferred = 0;
     int skipped = 0;
     for (ConnectedPlayer player : players) {
       if (!player.isActive() || player.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_5)) {
@@ -641,33 +642,7 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
         continue;
       }
       try {
-        Component notice = Component.translatable("link.transfer.shutdown", NamedTextColor.YELLOW,
-            Component.text(player.getUsername()), Component.text(configuration.getProxyName()));
-        player.sendMessage(notice);
-        player.sendActionBar(notice);
-        eligiblePlayers.add(player);
-      } catch (Exception ex) {
-        skipped++;
-        logger.warn("Unable to notify {} before shutdown transfer; player will be kicked normally.",
-            player.getUsername(), ex);
-      }
-    }
-
-    ImmutableList<ConnectedPlayer> notifiedPlayers = eligiblePlayers.build();
-    if (notifiedPlayers.isEmpty()) {
-      logger.info("No shutdown transfer packets sent; {} player(s) were not eligible.", skipped);
-      return;
-    }
-
-    sleepBeforeShutdownTransfer();
-
-    int transferred = 0;
-    for (ConnectedPlayer player : notifiedPlayers) {
-      if (!player.isActive()) {
-        skipped++;
-        continue;
-      }
-      try {
+        dragonflyProtection.recordShutdownTransferNotice(player.getUniqueId());
         player.transferToHost(transferTarget);
         transferred++;
         logger.info("Transferring {} to {}:{} before proxy shutdown.",
@@ -698,18 +673,21 @@ public class LinkServer implements ProxyServer, ForwardingAudience {
     }
   }
 
-  private void sleepBeforeShutdownTransfer() {
-    if (SHUTDOWN_TRANSFER_NOTICE_MILLIS <= 0) {
+  private void deliverPendingShutdownTransferNotice(ServerPostConnectEvent event) {
+    if (!(event.getPlayer() instanceof ConnectedPlayer player)) {
       return;
     }
-    logger.info("Sent shutdown transfer notice to eligible player(s); waiting {}ms before transfer.",
-        SHUTDOWN_TRANSFER_NOTICE_MILLIS);
-    try {
-      Thread.sleep(SHUTDOWN_TRANSFER_NOTICE_MILLIS);
-    } catch (InterruptedException ex) {
-      Thread.currentThread().interrupt();
-      logger.warn("Interrupted while waiting to show shutdown transfer notice; continuing transfer.");
+
+    String sourceProxy = dragonflyProtection.consumeShutdownTransferNotice(player.getUniqueId());
+    if (sourceProxy == null) {
+      return;
     }
+
+    player.sendMessage(Component.translatable("link.transfer.shutdown", NamedTextColor.YELLOW,
+        Component.text(player.getUsername()), Component.text(sourceProxy),
+        Component.text(configuration.getProxyName())));
+    logger.info("Sent shutdown transfer notice to {} after reconnect from {} to {}.",
+        player.getUsername(), sourceProxy, configuration.getProxyName());
   }
 
   /**
